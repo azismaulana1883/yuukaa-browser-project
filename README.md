@@ -16,6 +16,20 @@ Proyek ini dibangun dari nol dan diperuntukkan khusus bagi para programmer, deve
 - **Desain UI/UX:** 100% Vanilla CSS (Tanpa ketergantungan pada kerangka kerja eksternal yang berat)
 - **Distribusi:** PyInstaller & Inno Setup
 
+## 📦 Changelog
+
+### v12.0 (Latest)
+- **New Feature:** Ditambahkan *Custom Download Manager* (Python-Native) untuk menangani file biner (seperti `.mp4`, `.zip`, `.exe`).
+- **New Feature:** Ditambahkan fitur pengaturan folder unduhan secara kustom di menu Settings.
+- **Bug Fix:** Memperbaiki kebuntuan (*deadlock*) antara WebView2 dan Python saat mengekstrak *cookie* secara sinkron.
+- **Optimization:** *Auto-close* pada tab kosong yang terbuat secara tidak sengaja oleh mesin download, dan penundaan render tab baru agar mencegah *race condition*.
+
+### v11.0 (Initial Release)
+- **Stabilitas Inti:** Rilis produksi pertama dengan fokus pada keringanan pemakaian RAM dan CPU.
+- **Sistem Installer Dinamis:** Inno Setup *auto-updater* via `AppId` cerdas.
+- **Bug Fix:** Mengatasi kebuntuan (*poison bypass*) pada *minimize/restore* WebView2.
+- **Navigasi Terpusat:** Tab *Hijacking* untuk memaksa *New Window* dibuka sebagai *New Tab* untuk kerapian *desktop*.
+
 ## 🧑‍💻 Penulis
 Dikembangkan dengan penuh dedikasi oleh **Azis Maulana (Yuukaa)**.
 

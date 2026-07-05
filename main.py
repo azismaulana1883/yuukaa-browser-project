@@ -32,11 +32,15 @@ def save_config(config):
 config = load_config()
 
 # Import PyQt6 FIRST (tidak perlu env trick karena pakai WebView2)
-from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent
+from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLineEdit,
-                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton)
+                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog)
 from PyQt6.QtGui import QAction, QIcon
 from qtwebview2 import QtWebViewWidget
+import urllib.request
+import urllib.error
+from urllib.parse import urlparse
+import threading
 
 # ======================================
 # ADBLOCK (domain-based)
@@ -111,6 +115,82 @@ QtWebViewWidget._default_fullscreen_handler = _safe_fullscreen_handler
 
 
 # ======================================
+# DOWNLOAD MANAGER
+# ======================================
+DOWNLOAD_EXTENSIONS = (
+    '.zip', '.rar', '.7z', '.tar', '.gz', '.xz', '.bz2',
+    '.exe', '.msi', '.apk', '.dmg', '.pkg', '.deb', '.rpm',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv',
+    '.mp3', '.wav', '.flac', '.aac', '.ogg',
+    '.iso', '.img', '.bin', '.torrent'
+)
+
+class DownloadWorker(QThread):
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, url, cookies, save_path):
+        super().__init__()
+        self.url = url
+        self.cookies = cookies
+        self.save_path = save_path
+
+    def run(self):
+        try:
+            req = urllib.request.Request(self.url, headers={"User-Agent": "YuukaaBrowser/12.0"})
+            if self.cookies:
+                cookie_str = "; ".join([f"{c.name}={c.value}" for c in self.cookies])
+                req.add_header("Cookie", cookie_str)
+            
+            with urllib.request.urlopen(req, timeout=15) as res:
+                filename = ""
+                cd = res.headers.get("Content-Disposition", "")
+                if "filename=" in cd:
+                    parts = cd.split("filename=")
+                    if len(parts) > 1:
+                        filename = parts[1].split(";")[0].strip('"\'')
+                
+                if not filename:
+                    parsed = urlparse(self.url)
+                    filename = os.path.basename(parsed.path)
+                    if not filename:
+                        filename = "downloaded_file"
+                
+                final_path = os.path.join(self.save_path, filename)
+                
+                base, ext = os.path.splitext(final_path)
+                counter = 1
+                while os.path.exists(final_path):
+                    final_path = f"{base} ({counter}){ext}"
+                    counter += 1
+                
+                total_size = res.headers.get("Content-Length")
+                total_size = int(total_size) if total_size else 0
+                downloaded = 0
+                
+                with open(final_path, 'wb') as f:
+                    while True:
+                        chunk = res.read(8192)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        
+                        mb_dl = downloaded / (1024 * 1024)
+                        if total_size > 0:
+                            pct = int((downloaded / total_size) * 100)
+                            mb_tot = total_size / (1024 * 1024)
+                            self.progress.emit(f"Downloading: {pct}% ({mb_dl:.1f}MB / {mb_tot:.1f}MB)")
+                        else:
+                            self.progress.emit(f"Downloading: {mb_dl:.1f}MB")
+                            
+                self.finished.emit(final_path)
+        except Exception as e:
+            self.error.emit(str(e))
+
+# ======================================
 # BROWSER TAB
 # ======================================
 class SafeQtWebViewWidget(QtWebViewWidget):
@@ -150,10 +230,6 @@ class BrowserTab(QWidget):
         self._timer.setInterval(600)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
-
-        # Load setelah widget siap
-        if url:
-            QTimer.singleShot(500, self._do_pending_load)
 
     def _do_pending_load(self):
         if self._pending_url:
@@ -202,11 +278,41 @@ class BrowserTab(QWidget):
                 if hasattr(self.webview, "_webview") and self.webview._webview:
                     def on_new_window(url):
                         if self.main_window:
-                            # Gunakan QTimer agar eksekusi new_tab berjalan di main thread UI secara aman
                             QTimer.singleShot(0, lambda: self.main_window.new_tab(url=url))
-                        return "deny" # Wry expects "allow" or "deny" string to prevent default window
+                        return "deny"
                     self.webview._webview.set_on_new_window(on_new_window)
+                    
+                    def on_navigation(url):
+                        if url.startswith("yuukaa-action://"):
+                            if self.main_window:
+                                QTimer.singleShot(0, lambda: self.main_window.handle_action(url))
+                            return False
+                        
+                        lower_url = url.lower().split('?')[0]
+                        if any(lower_url.endswith(ext) for ext in DOWNLOAD_EXTENSIONS):
+                            if self.main_window:
+                                # AVOID DEADLOCK: Jangan panggil cookies_for_url di dalam handler on_navigation!
+                                QTimer.singleShot(0, lambda: self.main_window.start_download(url, self))
+                                
+                                # Auto-close jika ini tab baru yang kosong
+                                if not self._current_url or self._current_url == "about:blank":
+                                    def close_this_tab():
+                                        if self.main_window:
+                                            idx = self.main_window.tab_layout.indexOf(self)
+                                            if idx != -1:
+                                                self.main_window.close_tab(idx)
+                                    QTimer.singleShot(100, close_this_tab)
+                            return False # Block navigation, we are downloading it
+                        return True
+                    
+                    if hasattr(self.webview._webview, "set_on_navigation"):
+                        self.webview._webview.set_on_navigation(on_navigation)
+                    
                     self._new_window_handler_set = True
+                    
+                    # LOAD URL SEKARANG, KARENA HANDLER SUDAH AKTIF!
+                    if self._pending_url:
+                        self._do_pending_load()
             except Exception as e:
                 pass
                 
@@ -281,7 +387,7 @@ class YuukaaBrowser(QMainWindow):
     def __init__(self, cfg):
         super().__init__()
         self.config = cfg
-        self.setWindowTitle("Yuukaa Search V11")
+        self.setWindowTitle("Yuukaa Search V12")
         self.setGeometry(100, 100, 1280, 800)
 
         icon_path = resource_path("icon.ico")
@@ -396,8 +502,15 @@ class YuukaaBrowser(QMainWindow):
         settings_path = resource_path("settings.html")
         dns = self.config.get("dns", "none")
         custom_dns = self.config.get("customDns", "")
+        dl_path = self.config.get("download_path", os.path.join(os.path.expanduser("~"), "Downloads"))
         from urllib.parse import urlencode
-        q = urlencode({"theme": "dark", "engine": self.search_engine, "dns": dns, "customDns": custom_dns})
+        q = urlencode({
+            "theme": "dark", 
+            "engine": self.search_engine, 
+            "dns": dns, 
+            "customDns": custom_dns,
+            "dl_path": dl_path
+        })
         url = QUrl.fromLocalFile(settings_path)
         url.setQuery(q)
         tab = self.new_tab(url=url.toString(), label="⚙️ Settings")
@@ -447,7 +560,98 @@ class YuukaaBrowser(QMainWindow):
             display = "🕵️ " + display
         self.tab_bar.setTabText(idx, display)
         if self.tab_bar.currentIndex() == idx:
-            self.setWindowTitle(f"{title} - Yuukaa Search V10")
+            self.setWindowTitle(f"{title} - Yuukaa Search V12")
+
+    def start_download(self, url, tab):
+        cookies = []
+        try:
+            if tab and hasattr(tab, 'webview') and hasattr(tab.webview, '_webview'):
+                cookies = tab.webview._webview.cookies_for_url(url)
+        except Exception as e:
+            print(f"Failed to get cookies: {e}")
+            
+        dl_path = self.config.get("download_path", os.path.join(os.path.expanduser("~"), "Downloads"))
+        if not os.path.exists(dl_path):
+            os.makedirs(dl_path, exist_ok=True)
+            
+        worker = DownloadWorker(url, cookies, dl_path)
+        # Tangkap event progress untuk menampilkan di title bar window
+        def update_progress(msg):
+            self.setWindowTitle(f"[ {msg} ] - Yuukaa Search V12")
+            
+        def on_finished(final_path):
+            self.setWindowTitle("Download Selesai! - Yuukaa Search V12")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V12"))
+            
+        def on_error(err):
+            print("Download Error:", err)
+            self.setWindowTitle("Download Gagal! - Yuukaa Search V12")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V12"))
+            
+        worker.progress.connect(update_progress)
+        worker.finished.connect(on_finished)
+        worker.error.connect(on_error)
+        
+        # Simpan referensi agar tidak di-garbage collect
+        if not hasattr(self, '_dl_workers'):
+            self._dl_workers = []
+        self._dl_workers.append(worker)
+        worker.finished.connect(lambda p: self._dl_workers.remove(worker) if worker in self._dl_workers else None)
+        worker.error.connect(lambda e: self._dl_workers.remove(worker) if worker in self._dl_workers else None)
+        
+        worker.start()
+
+    def handle_action(self, url):
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(url)
+        action = parsed.netloc or parsed.path.strip("/")
+        qs = parse_qs(parsed.query)
+        
+        if action == "save-settings":
+            engine = qs.get("engine", ["google"])[0]
+            dns = qs.get("dns", ["none"])[0]
+            custom_dns = qs.get("customDns", [""])[0]
+            
+            self.config["engine"] = engine
+            self.config["dns"] = dns
+            self.config["customDns"] = custom_dns
+            self.search_engine = engine
+            save_config(self.config)
+            
+            # Reload tab
+            tab = self._cur_tab()
+            if tab:
+                tab.reload()
+                
+        elif action == "select-download-dir":
+            from PyQt6.QtWidgets import QFileDialog
+            dl_path = self.config.get("download_path", os.path.join(os.path.expanduser("~"), "Downloads"))
+            new_path = QFileDialog.getExistingDirectory(self, "Pilih Folder Download", dl_path)
+            if new_path:
+                self.config["download_path"] = new_path
+                save_config(self.config)
+                # Reload settings tab with new path
+                tab = self._cur_tab()
+                if tab and "settings.html" in tab.url_str():
+                    import urllib.parse
+                    from PyQt6.QtCore import QUrl
+                    settings_path = resource_path("settings.html")
+                    q = urllib.parse.urlencode({
+                        "theme": "dark",
+                        "engine": self.search_engine,
+                        "dns": self.config.get("dns", "none"),
+                        "customDns": self.config.get("customDns", ""),
+                        "dl_path": new_path
+                    })
+                    u = QUrl.fromLocalFile(settings_path)
+                    u.setQuery(q)
+                    tab.load(u.toString())
+                    
+        elif action == "clear-history":
+            self.clear_data()
+            
+        elif action == "new-incognito":
+            self.new_tab(url="yuukaa://home", incognito=True)
 
     def navigate_from_bar(self):
         text = self.url_bar.text().strip()

@@ -312,7 +312,20 @@
         
         <!-- Search Engine -->
         <div id="search-engine" class="section">
-            <h2>Search engine</h2>
+            <h2>General Settings</h2>
+            
+            <h4>Download Manager</h4>
+            <div class="card">
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Download Location</div>
+                        <div class="item-desc" id="downloadPathText">C:\Downloads</div>
+                    </div>
+                    <button class="btn btn-outline" onclick="selectDownloadDir()">Change...</button>
+                </div>
+            </div>
+
+            <h4>Default Search Engine</h4>
             <div class="card">
                 <div class="list-item">
                     <div class="item-info">
@@ -382,7 +395,7 @@
             <h2>About Yuukaa</h2>
             <div class="card about-box">
                 <div class="logo-placeholder">Y</div>
-                <div class="about-title">Yuukaa Browser V11</div>
+                <div class="about-title">Yuukaa Browser V12</div>
                 <p class="item-desc">Built with Python and modern QtWebEngine architecture.<br>Designed for speed, privacy, and absolute simplicity.</p>
             </div>
         </div>
@@ -435,6 +448,10 @@
             window.location.href = "yuukaa-action://new-incognito";
         }
 
+        function selectDownloadDir() {
+            window.location.href = "yuukaa-action://select-download-dir";
+        }
+
         function toggleDnsPanel() {
             const isChecked = document.getElementById('dnsSwitch').checked;
             document.getElementById('dnsOptions').style.display = isChecked ? 'block' : 'none';
@@ -472,6 +489,11 @@
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             
+            const dlPath = urlParams.get('dl_path');
+            if (dlPath) {
+                document.getElementById('downloadPathText').innerText = decodeURIComponent(dlPath);
+            }
+
             if(urlParams.get('theme') === 'light') {
                 document.getElementById('bodyTheme').setAttribute('data-theme', 'light');
             } else {
