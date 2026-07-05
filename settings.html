@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yuukaa Settings</title>
+    <style>
+        :root {
+            /* Light Theme Variables */
+            --bg-color: #f3f4f6;
+            --sidebar-bg: #f9fafb;
+            --card-bg: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --nav-hover: #f3f4f6;
+            --nav-active-bg: #eff6ff;
+            --nav-active-text: #2563eb;
+            --btn-danger: #ef4444;
+            --btn-danger-hover: #dc2626;
+            --btn-dark: #374151;
+            --btn-dark-hover: #1f2937;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme Variables */
+            --bg-color: #121212;
+            --sidebar-bg: #1e1e1e;
+            --card-bg: #272727;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #3f3f46;
+            --accent-color: #3b82f6;
+            --accent-hover: #60a5fa;
+            --nav-hover: #27272a;
+            --nav-active-bg: rgba(59, 130, 246, 0.15);
+            --nav-active-text: #60a5fa;
+            --btn-danger: #ef4444;
+            --btn-danger-hover: #f87171;
+            --btn-dark: #4b5563;
+            --btn-dark-hover: #6b7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Typography */
+        h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; letter-spacing: -0.025em; }
+        h4 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; margin-top: 1.5rem; }
+        p { line-height: 1.5; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2.5rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .sidebar-title {
+            padding: 0 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-item {
+            padding: 0.875rem 1.5rem;
+            margin: 0.25rem 1rem 0.25rem 0;
+            border-radius: 0 20px 20px 0;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: none;
+            background: none;
+            text-align: left;
+            width: calc(100% - 1rem);
+        }
+
+        .nav-item:hover {
+            background-color: var(--nav-hover);
+        }
+
+        .nav-item.active {
+            background-color: var(--nav-active-bg);
+            color: var(--nav-active-text);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 3rem 4rem;
+            max-width: 960px;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+            scroll-margin-top: 2rem;
+        }
+
+        /* Card System */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .list-item {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item-column {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .item-info { flex: 1; padding-right: 1.5rem; }
+        .item-title { font-weight: 500; margin-bottom: 0.25rem; font-size: 0.95rem; }
+        .item-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+
+        /* Form Controls */
+        select, input[type="text"] {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 2rem 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
+
+        input[type="text"] { cursor: text; width: 100%; padding-right: 1rem; margin-top: 10px; }
+        
+        select:focus, input[type="text"]:focus { border-color: var(--accent-color); }
+
+        /* iOS Style Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        [data-theme="dark"] .slider { background-color: #475569; }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+        .btn-outline:hover { background-color: var(--nav-active-bg); }
+
+        .btn-danger { background-color: var(--btn-danger); color: white; }
+        .btn-danger:hover { background-color: var(--btn-danger-hover); }
+        .btn-success { background-color: #10b981 !important; color: white; }
+
+        .btn-dark-mode { background-color: var(--btn-dark); color: white; }
+        .btn-dark-mode:hover { background-color: var(--btn-dark-hover); }
+
+        /* Extra details */
+        .dns-panel {
+            padding: 1rem 1.5rem 1.5rem 1.5rem;
+            background-color: rgba(0,0,0,0.02);
+            border-top: 1px solid var(--border-color);
+            display: none;
+        }
+        [data-theme="dark"] .dns-panel { background-color: rgba(255,255,255,0.02); }
+        
+        .dns-panel-title { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+
+        .about-box {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+        .logo-placeholder {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+            line-height: 1;
+        }
+        .about-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+    </style>
+</head>
+<body data-theme="dark" id="bodyTheme">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+        </div>
+        <div class="nav-menu">
+            <button class="nav-item active" onclick="scrollToSection('search-engine', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Search engine
+            </button>
+            <button class="nav-item" onclick="scrollToSection('privacy', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Privacy and security
+            </button>
+            <button class="nav-item" onclick="scrollToSection('about', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                About Yuukaa
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- Search Engine -->
+        <div id="search-engine" class="section">
+            <h2>Search engine</h2>
+            <div class="card">
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Search engine used in the address bar</div>
+                        <div class="item-desc">Choose your default search provider</div>
+                    </div>
+                    <div>
+                        <select id="engineSelect" onchange="updateSettings()">
+                            <option value="google">Google</option>
+                            <option value="bing">Bing</option>
+                            <option value="duckduckgo">DuckDuckGo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Privacy & Security -->
+        <div id="privacy" class="section">
+            <h2>Privacy and security</h2>
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Clear browsing data</div>
+                        <div class="item-desc">Clear history, cookies, cache, and more</div>
+                    </div>
+                    <button class="btn btn-danger" onclick="clearHistory(this)">Clear data</button>
+                </div>
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Incognito mode</div>
+                        <div class="item-desc">Browse privately without saving history to disk</div>
+                    </div>
+                    <button class="btn btn-dark-mode" onclick="openIncognito()">Open Incognito</button>
+                </div>
+            </div>
+            
+            <h4>Advanced Security</h4>
+            <div class="card">
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Use secure DNS (DNS over HTTPS)</div>
+                        <div class="item-desc">Determines how to connect to websites over a secure connection</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="dnsSwitch" onchange="toggleDnsPanel()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="dnsOptions" class="dns-panel">
+                    <div class="dns-panel-title">Select your DNS provider (Requires Browser Restart to apply changes)</div>
+                    <select id="dnsProvider" style="width: 250px;" onchange="toggleCustomDnsInput()">
+                        <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+                        <option value="google">Google (Public DNS)</option>
+                        <option value="adguard">AdGuard DNS (Block Ads & Trackers)</option>
+                        <option value="custom">Add custom DNS service provider...</option>
+                    </select>
+                    <div id="customDnsUrlWrapper" style="display: none;">
+                        <input type="text" id="customDnsUrl" placeholder="Enter Custom DNS URL (https://...)" onchange="updateSettings()">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- About -->
+        <div id="about" class="section">
+            <h2>About Yuukaa</h2>
+            <div class="card about-box">
+                <div class="logo-placeholder">Y</div>
+                <div class="about-title">Yuukaa Browser V11</div>
+                <p class="item-desc">Built with Python and modern QtWebEngine architecture.<br>Designed for speed, privacy, and absolute simplicity.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function scrollToSection(id, btn) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Update active state in sidebar
+            const items = document.querySelectorAll('.nav-item');
+            items.forEach(item => item.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+
+        // Highlight sidebar items on scroll
+        window.addEventListener('scroll', () => {
+            let current = '';
+            const sections = document.querySelectorAll('.section');
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(li => {
+                li.classList.remove('active');
+                if (li.getAttribute('onclick').includes(current)) {
+                    li.classList.add('active');
+                }
+            });
+        });
+
+        function clearHistory(btn) {
+            window.location.href = "yuukaa-action://clear-history";
+            const originalText = btn.innerText;
+            btn.innerText = "Cleared ✓";
+            btn.classList.add('btn-success');
+            setTimeout(() => { 
+                btn.innerText = originalText; 
+                btn.classList.remove('btn-success');
+            }, 2000);
+        }
+
+        function openIncognito() {
+            window.location.href = "yuukaa-action://new-incognito";
+        }
+
+        function toggleDnsPanel() {
+            const isChecked = document.getElementById('dnsSwitch').checked;
+            document.getElementById('dnsOptions').style.display = isChecked ? 'block' : 'none';
+            if(isChecked) {
+                toggleCustomDnsInput();
+            } else {
+                updateSettings();
+            }
+        }
+        
+        function toggleCustomDnsInput() {
+            const provider = document.getElementById('dnsProvider').value;
+            document.getElementById('customDnsUrlWrapper').style.display = (provider === 'custom') ? 'block' : 'none';
+            updateSettings();
+        }
+
+        function updateSettings() {
+            const engine = document.getElementById("engineSelect").value;
+            
+            const isDnsEnabled = document.getElementById('dnsSwitch').checked;
+            let dnsProvider = "none";
+            let customUrl = "";
+            
+            if (isDnsEnabled) {
+                dnsProvider = document.getElementById('dnsProvider').value;
+                if (dnsProvider === "custom") {
+                    customUrl = document.getElementById('customDnsUrl').value;
+                }
+            }
+            
+            window.location.href = `yuukaa-action://save-settings?engine=${engine}&dns=${dnsProvider}&customDns=${encodeURIComponent(customUrl)}`;
+        }
+
+        // Initialize state from URL params
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if(urlParams.get('theme') === 'light') {
+                document.getElementById('bodyTheme').setAttribute('data-theme', 'light');
+            } else {
+                document.getElementById('bodyTheme').setAttribute('data-theme', 'dark');
+            }
+            
+            if(urlParams.get('engine')) {
+                document.getElementById('engineSelect').value = urlParams.get('engine');
+            }
+            
+            const dnsParam = urlParams.get('dns');
+            if(dnsParam && dnsParam !== "none") {
+                document.getElementById('dnsSwitch').checked = true;
+                document.getElementById('dnsOptions').style.display = 'block';
+                document.getElementById('dnsProvider').value = dnsParam;
+                
+                if (dnsParam === "custom") {
+                    document.getElementById('customDnsUrlWrapper').style.display = 'block';
+                    document.getElementById('customDnsUrl').value = urlParams.get('customDns') || "";
+                }
+            }
+        }
+    </script>
+</body>
+</html>

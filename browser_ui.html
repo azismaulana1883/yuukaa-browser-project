@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yuukaa Browser V9</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #1a1a2e;
+    --toolbar: #16213e;
+    --tab-bg: #0f3460;
+    --tab-active: #e94560;
+    --accent: #e94560;
+    --text: #eaeaea;
+    --text-dim: #888;
+    --input-bg: #0f3460;
+    --border: #2a2a4a;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ======== TAB BAR ======== */
+  #tab-bar {
+    display: flex;
+    align-items: flex-end;
+    background: var(--bg);
+    padding: 6px 6px 0;
+    gap: 3px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--tab-bg);
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 180px;
+    min-width: 90px;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    border-bottom: none;
+    position: relative;
+  }
+  .tab:hover { background: #1a3a6a; color: var(--text); }
+  .tab.active {
+    background: var(--toolbar);
+    color: var(--text);
+    border-color: var(--border);
+    font-weight: 500;
+  }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .tab .tab-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tab .tab-favicon {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+  .tab .tab-close {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: all 0.1s;
+  }
+  .tab .tab-close:hover { background: rgba(233,69,96,0.3); color: var(--accent); }
+  .tab.incognito { border-top: 2px solid #9c27b0; }
+  
+  #new-tab-btn {
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 6px;
+    line-height: 1;
+    transition: all 0.15s;
+    margin-bottom: 0;
+  }
+  #new-tab-btn:hover { background: var(--tab-bg); color: var(--text); }
+
+  /* ======== TOOLBAR ======== */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    background: var(--toolbar);
+    padding: 8px 10px;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    width: 32px; height: 32px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  #url-bar-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0 14px;
+    gap: 8px;
+    transition: border-color 0.2s;
+  }
+  #url-bar-wrap:focus-within { border-color: var(--accent); }
+
+  #lock-icon { font-size: 12px; color: #4caf50; flex-shrink: 0; }
+  
+  #url-bar {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    padding: 6px 0;
+  }
+  #url-bar::placeholder { color: var(--text-dim); }
+
+  #menu-btn {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  #menu-btn:hover { background: #c73652; }
+
+  /* ======== DROPDOWN MENU ======== */
+  #dropdown {
+    display: none;
+    position: fixed;
+    top: 80px; right: 10px;
+    background: #1e1e3a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 200px;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #dropdown.open { display: block; }
+  .menu-item {
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .menu-item:hover { background: rgba(233,69,96,0.15); }
+  .menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .menu-label { padding: 4px 14px; font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ======== MAIN WEBVIEW AREA ======== */
+  #webview-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ======== HOME PAGE ======== */
+  #home-page {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+  #home-page.hidden { display: none; }
+
+  .home-logo {
+    font-size: 48px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #e94560, #7c4dff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+  .home-tagline { color: var(--text-dim); font-size: 14px; }
+  .home-search {
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 0 20px;
+    width: 480px;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .home-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233,69,96,0.15); }
+  .home-search input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    padding: 14px 0;
+  }
+  .home-search input::placeholder { color: var(--text-dim); }
+  .home-search-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  .home-search-btn:hover { background: #c73652; }
+
+  /* ======== LOADING BAR ======== */
+  #loading-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    width: 0;
+    transition: width 0.3s ease;
+    z-index: 9999;
+  }
+
+  /* ======== STATUS BAR ======== */
+  #status-bar {
+    position: fixed;
+    bottom: 0; left: 0;
+    background: rgba(22,33,62,0.9);
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 0 4px 0 0;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-bar"></div>
+
+<!-- TAB BAR -->
+<div id="tab-bar">
+  <!-- tabs injected by JS -->
+  <button id="new-tab-btn" onclick="newTab()" title="Tab Baru">+</button>
+</div>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <button class="nav-btn" id="btn-back" onclick="goBack()" title="Kembali">&#8592;</button>
+  <button class="nav-btn" id="btn-forward" onclick="goForward()" title="Maju">&#8594;</button>
+  <button class="nav-btn" id="btn-reload" onclick="reloadPage()" title="Reload">&#8635;</button>
+
+  <div id="url-bar-wrap">
+    <span id="lock-icon">🔒</span>
+    <input type="text" id="url-bar" placeholder="Cari atau masukkan URL..." 
+           onkeydown="handleUrlKey(event)" onfocus="this.select()" />
+  </div>
+
+  <button class="nav-btn" id="btn-home" onclick="goHome()" title="Beranda">🏠</button>
+  <button id="menu-btn" onclick="toggleMenu()" title="Menu">⚙</button>
+</div>
+
+<!-- DROPDOWN MENU -->
+<div id="dropdown">
+  <div class="menu-label">Navigasi</div>
+  <div class="menu-item" onclick="newTab()">➕ &nbsp;Tab Baru</div>
+  <div class="menu-item" onclick="newIncognitoTab()">🕵️ &nbsp;Tab Incognito</div>
+  <div class="menu-divider"></div>
+  <div class="menu-label">Pengaturan</div>
+  <div class="menu-item" onclick="openSettings()">⚙️ &nbsp;Settings</div>
+  <div class="menu-item" onclick="toggleTheme()">🌓 &nbsp;Toggle Theme</div>
+  <div class="menu-divider"></div>
+  <div class="menu-item" onclick="clearData()">🧹 &nbsp;Hapus Cache & History</div>
+</div>
+
+<!-- WEBVIEW AREA (konten situs dimuat di sini oleh pywebview) -->
+<div id="webview-container">
+  <div id="home-page">
+    <div class="home-logo">Yuukaa</div>
+    <div class="home-tagline">Peramban Cerdas & Aman — Didukung Edge WebView2</div>
+    <div class="home-search">
+      <input type="text" id="home-search-input" placeholder="Cari di Google, atau masukkan URL..."
+             onkeydown="handleHomeSearch(event)" />
+      <button class="home-search-btn" onclick="doHomeSearch()">Cari →</button>
+    </div>
+  </div>
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+// ======================================
+// STATE MANAGER
+// ======================================
+let tabs = [];
+let activeTabId = null;
+let tabIdCounter = 0;
+let isDark = true;
+
+// ======================================
+// PYWEBVIEW API BRIDGE
+// ======================================
+async function api(method, ...args) {
+  return await window.pywebview.api[method](...args);
+}
+
+// ======================================
+// TAB MANAGEMENT
+// ======================================
+function createTab(url = '', title = 'Tab Baru', incognito = false) {
+  const id = ++tabIdCounter;
+  tabs.push({ id, url, title, incognito, favicon: '' });
+  renderTabs();
+  setActiveTab(id);
+  if (url) navigate(url);
+  else showHome();
+  return id;
+}
+
+function setActiveTab(id) {
+  activeTabId = id;
+  renderTabs();
+  const tab = tabs.find(t => t.id === id);
+  if (tab) {
+    updateUrlBar(tab.url);
+    if (!tab.url) showHome();
+    else hideHome();
+  }
+}
+
+function closeTab(id, e) {
+  e.stopPropagation();
+  if (tabs.length <= 1) return;
+  const idx = tabs.findIndex(t => t.id === id);
+  tabs = tabs.filter(t => t.id !== id);
+  if (activeTabId === id) {
+    const newIdx = Math.min(idx, tabs.length - 1);
+    setActiveTab(tabs[newIdx].id);
+    api('switch_tab', tabs[newIdx].id, tabs[newIdx].url);
+  }
+  renderTabs();
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tab-bar');
+  const newBtn = document.getElementById('new-tab-btn');
+  
+  // Remove existing tabs
+  bar.querySelectorAll('.tab').forEach(el => el.remove());
+  
+  tabs.forEach(tab => {
+    const el = document.createElement('div');
+    el.className = 'tab' + (tab.id === activeTabId ? ' active' : '') + (tab.incognito ? ' incognito' : '');
+    el.innerHTML = `
+      <span class="tab-title">${escapeHtml(tab.title || 'Tab Baru')}</span>
+      <span class="tab-close" onclick="closeTab(${tab.id}, event)">✕</span>
+    `;
+    el.onclick = () => { setActiveTab(tab.id); api('switch_tab', tab.id, tab.url); };
+    bar.insertBefore(el, newBtn);
+  });
+}
+
+function updateTabInfo(id, title, url) {
+  const tab = tabs.find(t => t.id === id);
+  if (tab) {
+    if (title) tab.title = title;
+    if (url !== undefined) tab.url = url;
+    renderTabs();
+    if (id === activeTabId) updateUrlBar(url ?? tab.url);
+  }
+}
+
+// ======================================
+// NAVIGATION
+// ======================================
+function navigate(input) {
+  input = (input || '').trim();
+  if (!input) { showHome(); return; }
+  
+  let url;
+  if (input.startsWith('http://') || input.startsWith('https://') || input.startsWith('file://')) {
+    url = input;
+  } else if (input.includes('.') && !input.includes(' ') && !input.startsWith('yuukaa://')) {
+    url = 'https://' + input;
+  } else if (input === 'yuukaa://settings') {
+    openSettings(); return;
+  } else {
+    // Search
+    const engine = window._searchEngine || 'google';
+    const q = encodeURIComponent(input);
+    if (engine === 'bing') url = `https://www.bing.com/search?q=${q}`;
+    else if (engine === 'duckduckgo') url = `https://duckduckgo.com/?q=${q}`;
+    else url = `https://www.google.com/search?q=${q}`;
+  }
+  
+  hideHome();
+  updateUrlBar(url);
+  updateTabInfo(activeTabId, null, url);
+  api('navigate', activeTabId, url);
+}
+
+function goBack() { api('go_back', activeTabId); }
+function goForward() { api('go_forward', activeTabId); }
+function reloadPage() { api('reload', activeTabId); }
+function goHome() { showHome(); updateUrlBar(''); updateTabInfo(activeTabId, 'Beranda', ''); }
+
+function handleUrlKey(e) {
+  if (e.key === 'Enter') navigate(document.getElementById('url-bar').value);
+}
+
+function handleHomeSearch(e) {
+  if (e.key === 'Enter') doHomeSearch();
+}
+
+function doHomeSearch() {
+  const val = document.getElementById('home-search-input').value.trim();
+  if (val) navigate(val);
+}
+
+function updateUrlBar(url) {
+  const bar = document.getElementById('url-bar');
+  if (!url) { bar.value = ''; return; }
+  bar.value = url;
+  const lock = document.getElementById('lock-icon');
+  lock.textContent = url.startsWith('https://') ? '🔒' : url.startsWith('http://') ? '🔓' : '🔒';
+}
+
+// ======================================
+// HOME PAGE
+// ======================================
+function showHome() { document.getElementById('home-page').classList.remove('hidden'); }
+function hideHome() { document.getElementById('home-page').classList.add('hidden'); }
+
+// ======================================
+// MENU ACTIONS
+// ======================================
+function toggleMenu() {
+  document.getElementById('dropdown').classList.toggle('open');
+}
+
+function newTab() {
+  closeMenu();
+  const id = ++tabIdCounter;
+  tabs.push({ id, url: '', title: 'Tab Baru', incognito: false, favicon: '' });
+  renderTabs();
+  setActiveTab(id);
+  showHome();
+  api('new_tab', id, false);
+}
+
+function newIncognitoTab() {
+  closeMenu();
+  const id = ++tabIdCounter;
+  tabs.push({ id, url: '', title: '🕵️ Incognito', incognito: true, favicon: '' });
+  renderTabs();
+  setActiveTab(id);
+  showHome();
+  api('new_tab', id, true);
+}
+
+function openSettings() {
+  closeMenu();
+  navigate('yuukaa://settings');
+  api('open_settings', activeTabId);
+}
+
+function toggleTheme() {
+  closeMenu();
+  isDark = !isDark;
+  applyTheme();
+  api('toggle_theme', isDark);
+}
+
+function clearData() {
+  closeMenu();
+  api('clear_data');
+  alert('Cache dan history berhasil dihapus!');
+}
+
+function closeMenu() { document.getElementById('dropdown').classList.remove('open'); }
+
+// Close menu on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#dropdown') && !e.target.closest('#menu-btn')) {
+    closeMenu();
+  }
+});
+
+// ======================================
+// THEME
+// ======================================
+function applyTheme() {
+  const root = document.documentElement;
+  if (isDark) {
+    root.style.setProperty('--bg', '#1a1a2e');
+    root.style.setProperty('--toolbar', '#16213e');
+    root.style.setProperty('--tab-bg', '#0f3460');
+    root.style.setProperty('--text', '#eaeaea');
+    root.style.setProperty('--text-dim', '#888');
+    root.style.setProperty('--input-bg', '#0f3460');
+    root.style.setProperty('--border', '#2a2a4a');
+  } else {
+    root.style.setProperty('--bg', '#f0f2f5');
+    root.style.setProperty('--toolbar', '#ffffff');
+    root.style.setProperty('--tab-bg', '#e0e4ef');
+    root.style.setProperty('--text', '#1a1a2e');
+    root.style.setProperty('--text-dim', '#666');
+    root.style.setProperty('--input-bg', '#e8ebf5');
+    root.style.setProperty('--border', '#d0d4e0');
+  }
+}
+
+// ======================================
+// PYTHON → JS CALLBACKS
+// ======================================
+function onPageLoaded(tabId, url, title) {
+  updateTabInfo(tabId, title || url, url);
+  if (tabId === activeTabId) {
+    updateUrlBar(url);
+    hideHome();
+  }
+}
+
+function onLoadingStart(tabId) {
+  document.getElementById('loading-bar').style.width = '30%';
+}
+
+function onLoadingFinish(tabId) {
+  const bar = document.getElementById('loading-bar');
+  bar.style.width = '100%';
+  setTimeout(() => { bar.style.width = '0'; }, 500);
+}
+
+function onTitleChange(tabId, title) {
+  updateTabInfo(tabId, title, null);
+}
+
+function onUrlChange(tabId, url) {
+  updateTabInfo(tabId, null, url);
+}
+
+// ======================================
+// UTILS
+// ======================================
+function escapeHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ======================================
+// INIT
+// ======================================
+window.addEventListener('pywebviewready', async () => {
+  const config = await api('get_config');
+  window._searchEngine = config.engine || 'google';
+  isDark = config.theme !== 'light';
+  applyTheme();
+  
+  // Create first tab
+  createTab('', 'Beranda');
+});
+</script>
+</body>
+</html>

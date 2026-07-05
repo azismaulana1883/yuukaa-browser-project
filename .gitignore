@@ -1,0 +1,21 @@
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller Output
+build/
+dist/
+*.spec
+
+# Inno Setup Output
+installer/
+
+# Virtual Environments
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/

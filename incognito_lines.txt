@@ -1,0 +1,10 @@
+106: def __init__(self, url="", incognito=False, main_window=None, parent=None):
+109: self.incognito = incognito
+118: self.webview = QtWebViewWidget(incognito=self.incognito)
+291: a_incognito = QAction("🕵️ New Incognito Tab", self)
+292: a_incognito.triggered.connect(lambda: self.new_tab(incognito=True))
+293: menu.addAction(a_incognito)
+358: def new_tab(self, url="", label="New Tab", incognito=False):
+359: tab = BrowserTab(url=url, incognito=incognito, main_window=self, parent=self)
+360: if incognito and not label.startswith("🕵️"):
+412: if tab.incognito and not display.startswith("🕵️"):

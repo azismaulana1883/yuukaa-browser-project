@@ -1,0 +1,31 @@
+END USER LICENSE AGREEMENT (EULA) - YUUKAA BROWSER
+
+PENTING - HARAP DIBACA DENGAN SEKSAMA:
+Perjanjian Lisensi Pengguna Akhir ("EULA") ini adalah perjanjian hukum antara Anda (baik sebagai individu maupun entitas tunggal) dan Azis Maulana (Yuukaa) selaku pengembang dan pencipta perangkat lunak Yuukaa Browser ("Perangkat Lunak").
+
+Dengan menginstal, menyalin, atau menggunakan Perangkat Lunak ini, Anda setuju untuk terikat oleh ketentuan EULA ini. Jika Anda tidak menyetujui ketentuan ini, jangan instal atau gunakan Perangkat Lunak ini.
+
+1. HAK CIPTA DAN KEPEMILIKAN
+Perangkat Lunak ini adalah karya orisinal yang diciptakan dan dikembangkan secara mandiri oleh Azis Maulana (Yuukaa). Seluruh hak cipta, hak kekayaan intelektual, dan kepemilikan atas Perangkat Lunak (termasuk namun tidak terbatas pada kode sumber, desain antarmuka, fitur, dan logo) adalah milik eksklusif Azis Maulana (Yuukaa). Perangkat Lunak ini dilindungi oleh undang-undang hak cipta internasional.
+
+2. PEMBERIAN LISENSI
+Pengembang memberi Anda hak pribadi, non-eksklusif, dan tidak dapat dialihkan untuk menggunakan Perangkat Lunak ini secara gratis untuk tujuan pribadi, edukasi, maupun komersial. Namun, Anda tidak diperkenankan menjual ulang installer Perangkat Lunak ini demi keuntungan finansial sepihak tanpa izin tertulis dari Azis Maulana (Yuukaa).
+
+3. BATASAN
+Anda setuju untuk tidak:
+- Merekayasa balik (reverse engineer), mendekompilasi, atau membongkar Perangkat Lunak ini guna mencuri kode intinya.
+- Memodifikasi, menerjemahkan, atau membuat karya turunan berdasarkan Perangkat Lunak ini dan mengklaimnya secara sepihak sebagai milik Anda (plagiarisme).
+- Menghapus pemberitahuan hak cipta "Azis Maulana (Yuukaa)" yang terdapat pada dokumentasi atau installer Perangkat Lunak.
+
+4. PENAFIAN GARANSI (DISCLAIMER OF WARRANTY)
+Perangkat Lunak ini disediakan "SEBAGAIMANA ADANYA" (AS IS) tanpa garansi dalam bentuk apa pun. Azis Maulana (Yuukaa) tidak menjamin bahwa Perangkat Lunak ini 100% bebas dari kesalahan (bug) atau bebas dari gangguan. Penggunaan browser ini dan segala risiko yang timbul saat menjelajahi internet adalah tanggung jawab Anda sepenuhnya.
+
+5. BATASAN TANGGUNG JAWAB
+Dalam keadaan apa pun, Azis Maulana (Yuukaa) tidak bertanggung jawab atas segala kerusakan, insidental, tidak langsung, atau konsekuensial (termasuk kerugian data, hilangnya informasi, atau gangguan sistem) yang timbul akibat penggunaan atau ketidakmampuan menggunakan Perangkat Lunak ini.
+
+6. PENGHENTIAN
+Tanpa mengurangi hak-hak lainnya, Pengembang dapat menghentikan EULA ini secara sepihak jika Anda terbukti melanggar syarat dan ketentuan perjanjian ini. Dalam peristiwa tersebut, Anda diwajibkan untuk menghapus semua salinan Perangkat Lunak dari perangkat Anda.
+
+Dengan menekan tombol "I Accept" (Saya Setuju) atau melanjutkan instalasi, Anda mengakui bahwa Anda telah membaca perjanjian ini, memahaminya, dan sepenuhnya menghargai hak cipta intelektual penciptanya.
+
+(c) 2026 Azis Maulana (Yuukaa). Hak Cipta Dilindungi Undang-Undang.
