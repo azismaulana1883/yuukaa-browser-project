@@ -556,6 +556,13 @@ class YuukaaBrowser(QMainWindow):
         tab = self.tab_layout.widget(i)
         if isinstance(tab, BrowserTab):
             self.update_url_bar_str(tab.url_str())
+            
+            # Update window title to match the currently selected tab
+            title = tab.title_str()
+            if not title or title == "None":
+                title = "Homepage"
+            self.setWindowTitle(f"{title} - Yuukaa Search V12")
+            
             self.url_bar.clearFocus()
             tab.webview.raise_()
             tab.webview.setFocus()
