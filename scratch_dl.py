@@ -1,15 +1,13 @@
-import sys
-from PyQt6.QtWidgets import QApplication
-from qtwebview2.widget import QtWebViewWidget
+import urllib.request
+import urllib.parse
 
-app = QApplication(sys.argv)
-w = QtWebViewWidget()
-# create a data URI download link
-html = """
-<html><body>
-<a href="data:text/plain;charset=utf-8,Hello%20World" download="test.txt">Download File</a>
-</body></html>
-"""
-w.load_html(html)
-w.show()
-sys.exit(app.exec())
+def test_jsonp():
+    url = f"http://suggestqueries.google.com/complete/search?client=chrome&q=face&callback=myFunc"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        with urllib.request.urlopen(req, timeout=2) as response:
+            print("Response:", response.read().decode('utf-8'))
+    except Exception as e:
+        print("Error:", e)
+
+test_jsonp()

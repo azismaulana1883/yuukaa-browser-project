@@ -112,11 +112,37 @@
         .search-icon {
             position: absolute;
             left: 15px;
-            top: 50%;
+            top: 24px;
             transform: translateY(-50%);
             color: #9aa0a6;
             width: 20px;
             height: 20px;
+        }
+        .suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-top: none;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 6px var(--input-shadow);
+            margin-top: -10px;
+            padding-top: 10px;
+            overflow: hidden;
+            z-index: 10;
+            display: none;
+        }
+        .suggestion-item {
+            padding: 10px 20px 10px 45px;
+            cursor: pointer;
+            text-align: left;
+            color: var(--text-color);
+            transition: background-color 0.2s;
+        }
+        .suggestion-item:hover, .suggestion-item.active {
+            background-color: var(--btn-hover-border); /* using as highlight */
         }
         .search-buttons {
             margin-top: 30px;
@@ -161,7 +187,8 @@
     
     <div class="search-container">
         <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="search-icon"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
-        <input type="text" class="search-box" id="searchInput" placeholder="Cari Sesuatu..." autofocus>
+        <input type="text" class="search-box" id="searchInput" placeholder="Cari Sesuatu..." autocomplete="off" autofocus>
+        <div id="suggestionsBox" class="suggestions-box"></div>
     </div>
 
     <div class="search-buttons">
@@ -182,6 +209,96 @@
                 search();
             }
         });
+
+        // --- Suggestions Logic ---
+        let currentFocus = -1;
+        
+        // JSONP Callback
+        function handleSuggestions(data) {
+            const suggestions = data[1];
+            const box = document.getElementById('suggestionsBox');
+            box.innerHTML = '';
+            
+            if (suggestions.length === 0) {
+                box.style.display = 'none';
+                return;
+            }
+            
+            suggestions.forEach((sugg, index) => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerText = sugg;
+                div.onclick = function() {
+                    document.getElementById('searchInput').value = sugg;
+                    box.style.display = 'none';
+                    search();
+                };
+                box.appendChild(div);
+            });
+            box.style.display = 'block';
+            currentFocus = -1;
+        }
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const val = this.value;
+            const box = document.getElementById('suggestionsBox');
+            if (!val) {
+                box.style.display = 'none';
+                return;
+            }
+            
+            // Inject script for JSONP
+            const scriptId = 'jsonp-suggest';
+            let oldScript = document.getElementById(scriptId);
+            if (oldScript) oldScript.remove();
+            
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = `http://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(val)}&callback=handleSuggestions`;
+            document.body.appendChild(script);
+        });
+
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            const box = document.getElementById('suggestionsBox');
+            if (box.style.display !== 'block') return;
+            
+            const items = box.getElementsByTagName('div');
+            if (e.key === 'ArrowDown') {
+                currentFocus++;
+                addActive(items);
+            } else if (e.key === 'ArrowUp') {
+                currentFocus--;
+                addActive(items);
+            } else if (e.key === 'Enter') {
+                if (currentFocus > -1 && items[currentFocus]) {
+                    e.preventDefault();
+                    items[currentFocus].click();
+                }
+            }
+        });
+
+        function addActive(items) {
+            if (!items) return;
+            removeActive(items);
+            if (currentFocus >= items.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (items.length - 1);
+            items[currentFocus].classList.add('active');
+            // Scroll to view if needed
+            items[currentFocus].scrollIntoView({ block: 'nearest' });
+        }
+
+        function removeActive(items) {
+            for (let i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (e.target.id !== 'searchInput') {
+                document.getElementById('suggestionsBox').style.display = 'none';
+            }
+        });
+        // -------------------------
 
         // Theme management
         function setTheme(theme) {

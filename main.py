@@ -32,9 +32,9 @@ def save_config(config):
 config = load_config()
 
 # Import PyQt6 FIRST (tidak perlu env trick karena pakai WebView2)
-from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal
+from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal, QStringListModel
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLineEdit,
-                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog)
+                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog, QCompleter)
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from qtwebview2 import QtWebViewWidget
 import urllib.request
@@ -189,6 +189,39 @@ class DownloadWorker(QThread):
                 self.finished.emit(final_path)
         except Exception as e:
             self.error.emit(str(e))
+
+# ======================================
+# AUTO-SUGGEST WORKER
+# ======================================
+class SuggestWorker(QThread):
+    suggestions_ready = pyqtSignal(list)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.query = ""
+        self._lock = threading.Lock()
+        
+    def set_query(self, query):
+        with self._lock:
+            self.query = query
+        
+    def run(self):
+        with self._lock:
+            q = self.query
+        if not q or not q.strip():
+            self.suggestions_ready.emit([])
+            return
+            
+        url = f"http://suggestqueries.google.com/complete/search?client=chrome&q={urllib.parse.quote(q)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+        try:
+            with urllib.request.urlopen(req, timeout=2) as response:
+                import json
+                data = json.loads(response.read().decode('utf-8'))
+                if len(data) > 1 and isinstance(data[1], list):
+                    self.suggestions_ready.emit(data[1][:10]) # Limit to 10 suggestions
+        except Exception as e:
+            pass # Ignore network errors silently
 
 # ======================================
 # BROWSER TAB
@@ -456,6 +489,17 @@ class YuukaaBrowser(QMainWindow):
         self.url_bar.returnPressed.connect(self.navigate_from_bar)
         nav.addWidget(self.url_bar)
 
+        # Completer for Auto-suggestions
+        self.url_completer_model = QStringListModel()
+        self.url_completer = QCompleter(self.url_completer_model, self)
+        self.url_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.url_bar.setCompleter(self.url_completer)
+        
+        # Worker for Auto-suggestions
+        self.suggest_worker = SuggestWorker(self)
+        self.suggest_worker.suggestions_ready.connect(self.on_suggestions_ready)
+        self.url_bar.textEdited.connect(self.on_url_text_edited)
+
         # ---- MENU ----
         menu = QMenu("Menu", self)
 
@@ -710,6 +754,15 @@ class YuukaaBrowser(QMainWindow):
             tab = self._cur_tab()
             if tab and "settings.html" in tab.url_str():
                 tab.run_js("showNotification('Background berhasil dihapus!');")
+
+    def on_url_text_edited(self, text):
+        if len(text.strip()) > 0:
+            self.suggest_worker.set_query(text)
+            self.suggest_worker.start()
+            
+    def on_suggestions_ready(self, suggestions):
+        # Update model without closing the popup
+        self.url_completer_model.setStringList(suggestions)
 
     def navigate_from_bar(self):
         text = self.url_bar.text().strip()
