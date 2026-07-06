@@ -281,6 +281,31 @@
         }
         .about-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
 
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--btn-bg);
+            color: var(--text-color);
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid var(--input-border);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
     </style>
 </head>
 <body data-theme="dark" id="bodyTheme">
@@ -322,6 +347,20 @@
                         <div class="item-desc" id="downloadPathText">C:\Downloads</div>
                     </div>
                     <button class="btn btn-outline" onclick="selectDownloadDir()">Change...</button>
+                </div>
+            </div>
+
+            <h4>Homepage Customization</h4>
+            <div class="card">
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Background Image</div>
+                        <div class="item-desc">Set a custom background photo for your new tab homepage</div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline" onclick="window.location.href='yuukaa-action://remove-bg'">Remove</button>
+                        <button class="btn btn-primary" onclick="window.location.href='yuukaa-action://upload-bg'">Upload Photo...</button>
+                    </div>
                 </div>
             </div>
 
@@ -402,7 +441,17 @@
 
     </div>
 
+    <!-- Toast Notification -->
+    <div id="toast">Notification</div>
+
     <script>
+        function showNotification(msg) {
+            var x = document.getElementById("toast");
+            x.innerText = msg;
+            x.className = "show";
+            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+        }
+
         function scrollToSection(id, btn) {
             document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
             

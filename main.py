@@ -35,7 +35,7 @@ config = load_config()
 from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLineEdit,
                              QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog)
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from qtwebview2 import QtWebViewWidget
 import urllib.request
 import urllib.error
@@ -428,20 +428,28 @@ class YuukaaBrowser(QMainWindow):
         self.addToolBar(nav)
 
         btn_back = QAction("<- Back", self)
+        btn_back.setShortcut(QKeySequence("Alt+Left"))
         btn_back.triggered.connect(lambda: self._cur_tab() and self._cur_tab().back())
         nav.addAction(btn_back)
 
         btn_fwd = QAction("Forward ->", self)
+        btn_fwd.setShortcut(QKeySequence("Alt+Right"))
         btn_fwd.triggered.connect(lambda: self._cur_tab() and self._cur_tab().forward())
         nav.addAction(btn_fwd)
 
         btn_reload = QAction("Reload", self)
+        btn_reload.setShortcuts([QKeySequence("Ctrl+R"), QKeySequence("F5"), QKeySequence("Ctrl+Shift+R")])
         btn_reload.triggered.connect(lambda: self._cur_tab() and self._cur_tab().reload())
         nav.addAction(btn_reload)
 
         btn_new = QAction("+ New Tab", self)
-        btn_new.triggered.connect(lambda: self.new_tab())
+        btn_new.setShortcut(QKeySequence("Ctrl+T"))
+        btn_new.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), label="Homepage"))
         nav.addAction(btn_new)
+        
+        # Tab closing shortcut
+        shortcut_close = QShortcut(QKeySequence("Ctrl+W"), self)
+        shortcut_close.activated.connect(lambda: self.close_tab(self.tab_bar.currentIndex()))
 
         self.url_bar = QLineEdit()
         self.url_bar.setPlaceholderText("Cari atau masukkan URL...")
@@ -458,7 +466,7 @@ class YuukaaBrowser(QMainWindow):
         menu.addSeparator()
 
         a_incognito = QAction("🕵️ New Incognito Tab", self)
-        a_incognito.triggered.connect(lambda: self.new_tab(url="yuukaa://home", incognito=True))
+        a_incognito.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), incognito=True, label="Homepage"))
         menu.addAction(a_incognito)
 
         a_clear = QAction("🧹 Hapus Cache", self)
@@ -478,16 +486,28 @@ class YuukaaBrowser(QMainWindow):
         self.apply_theme()
 
         # Home tab
+        self.new_tab(url=self.get_home_url(), label="Homepage")
+
+    def get_home_url(self):
+        import urllib.parse
         home_path = resource_path("home.html")
         url = QUrl.fromLocalFile(home_path)
-        url.setQuery("theme=dark")
-        self.new_tab(url=url.toString(), label="Homepage")
+        bg_path = self.config.get("bg_image", "")
+        q = urllib.parse.urlencode({
+            "theme": "dark" if self.is_dark_mode else "light",
+            "bg": bg_path
+        })
+        url.setQuery(q)
+        return url.toString()
 
     def _cur_tab(self):
         w = self.tab_layout.currentWidget()
         return w if isinstance(w, BrowserTab) else None
 
-    def new_tab(self, url="", label="New Tab", incognito=False):
+    def new_tab(self, url=None, label="New Tab", incognito=False):
+        if url is None:
+            url = self.get_home_url()
+            label = "Homepage"
         tab = BrowserTab(url=url, incognito=incognito, main_window=self, parent=self)
         if incognito and not label.startswith("🕵️"):
             label = "🕵️ " + label
@@ -652,6 +672,37 @@ class YuukaaBrowser(QMainWindow):
             
         elif action == "new-incognito":
             self.new_tab(url="yuukaa://home", incognito=True)
+            
+        elif action == "upload-bg":
+            from PyQt6.QtWidgets import QFileDialog
+            img_path, _ = QFileDialog.getOpenFileName(self, "Pilih Foto Background", "", "Images (*.png *.jpg *.jpeg *.webp)")
+            if img_path:
+                self.config["bg_image"] = img_path
+                save_config(self.config)
+                # Reload all home tabs to apply changes
+                for i in range(self.tab_layout.count()):
+                    w = self.tab_layout.widget(i)
+                    if isinstance(w, BrowserTab) and "home.html" in w.url_str():
+                        w.load(self.get_home_url())
+                
+                # Show notification in settings tab
+                tab = self._cur_tab()
+                if tab and "settings.html" in tab.url_str():
+                    tab.run_js("showNotification('Background berhasil diunggah!');")
+                        
+        elif action == "remove-bg":
+            self.config["bg_image"] = ""
+            save_config(self.config)
+            # Reload all home tabs to apply changes
+            for i in range(self.tab_layout.count()):
+                w = self.tab_layout.widget(i)
+                if isinstance(w, BrowserTab) and "home.html" in w.url_str():
+                    w.load(self.get_home_url())
+                    
+            # Show notification in settings tab
+            tab = self._cur_tab()
+            if tab and "settings.html" in tab.url_str():
+                tab.run_js("showNotification('Background berhasil dihapus!');")
 
     def navigate_from_bar(self):
         text = self.url_bar.text().strip()

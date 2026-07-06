@@ -35,6 +35,11 @@
             --btn-hover-text: #ffffff;
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -46,6 +51,29 @@
             height: 100vh;
             margin: 0;
             transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+            z-index: 0;
+            animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        #bg-image-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: -2;
+            display: none;
+        }
+
+        #bg-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: -1;
+            display: none;
         }
         .logo {
             font-size: 90px;
@@ -112,16 +140,32 @@
     </style>
 </head>
 <body data-theme="dark" id="bodyTheme">
+    <div id="bg-image-layer"></div>
+    <div id="bg-overlay"></div>
+    <script>
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const bgPath = urlParams.get('bg');
+            if (bgPath) {
+                const bgLayer = document.getElementById('bg-image-layer');
+                const bgOverlay = document.getElementById('bg-overlay');
+                bgLayer.style.backgroundImage = `url('file:///${encodeURI(bgPath).replace(/'/g, "%27")}')`;
+                bgLayer.style.display = 'block';
+                bgOverlay.style.display = 'block';
+                document.body.style.color = '#ffffff';
+            }
+        })();
+    </script>
 
     <div class="logo">Yuukaa</div>
     
     <div class="search-container">
         <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="search-icon"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
-        <input type="text" class="search-box" id="searchInput" placeholder="Telusuri Google atau ketik URL..." autofocus>
+        <input type="text" class="search-box" id="searchInput" placeholder="Cari Sesuatu..." autofocus>
     </div>
 
     <div class="search-buttons">
-        <button class="btn" onclick="search()">Penelusuran Yuukaa</button>
+        <button class="btn" onclick="search()">Penelusuran</button>
         <button class="btn" onclick="search()">Saya Lagi Beruntung</button>
     </div>
 
