@@ -400,6 +400,13 @@
                     </div>
                     <button class="btn btn-dark-mode" onclick="openIncognito()">Open Incognito</button>
                 </div>
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-title">Bebaskan RAM (Memory Flush)</div>
+                        <div class="item-desc">Paksa browser untuk membersihkan memori (garbage collection) dan tab yang tertidur.</div>
+                    </div>
+                    <button class="btn btn-outline" onclick="flushRam()">Bebaskan RAM</button>
+                </div>
             </div>
             
             <h4>Advanced Security</h4>
@@ -494,7 +501,12 @@
         }
 
         function openIncognito() {
-            window.location.href = "yuukaa-action://new-incognito";
+            window.location.href = "yuukaa-action://new_incognito";
+        }
+
+        function flushRam() {
+            window.location.href = "yuukaa-action://flush_ram";
+            showNotification("Membersihkan RAM...");
         }
 
         function selectDownloadDir() {
