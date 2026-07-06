@@ -41,6 +41,8 @@ import urllib.request
 import urllib.error
 from urllib.parse import urlparse
 import threading
+import gc
+import time
 
 # ======================================
 # ADBLOCK (domain-based)
@@ -238,6 +240,8 @@ class SafeQtWebViewWidget(QtWebViewWidget):
         # Sengaja dilewatkan agar tidak memanggil super().hideEvent(event)
         pass
 
+from PyQt6.QtWidgets import QLabel
+
 class BrowserTab(QWidget):
     def __init__(self, url="", incognito=False, main_window=None, parent=None):
         super().__init__(parent)
@@ -246,23 +250,57 @@ class BrowserTab(QWidget):
         self._pending_url = url
         self._current_url = ""
         self._title = "Memuat..."
+        self.last_accessed = time.time()
+        self.is_sleeping = False
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
 
-        self.webview = SafeQtWebViewWidget(incognito=self.incognito)
-        if config.get("theme") == "dark":
-            self.webview.set_background_color(43, 43, 43)
-        else:
-            self.webview.set_background_color(255, 255, 255)
-        layout.addWidget(self.webview)
+        # Placeholder for sleeping tab
+        self.sleep_label = QLabel("😴 Tab Sedang Tidur\n(Klik untuk memuat ulang)")
+        self.sleep_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sleep_label.setStyleSheet("color: gray; font-size: 18px;")
+        self.sleep_label.hide()
+        self.layout.addWidget(self.sleep_label)
+
+        self._create_webview()
 
         # Poll timer: cek URL & title setiap 600ms
         self._timer = QTimer(self)
         self._timer.setInterval(600)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
+
+    def _create_webview(self):
+        self.webview = SafeQtWebViewWidget(incognito=self.incognito)
+        if config.get("theme") == "dark":
+            self.webview.set_background_color(43, 43, 43)
+        else:
+            self.webview.set_background_color(255, 255, 255)
+        self.layout.addWidget(self.webview)
+        
+        if hasattr(self, '_new_window_handler_set'):
+            delattr(self, '_new_window_handler_set')
+
+    def sleep(self):
+        if self.is_sleeping or not hasattr(self, 'webview'):
+            return
+        self.is_sleeping = True
+        try:
+            self.webview.eval_js("window.location.href = 'about:blank';")
+        except:
+            pass
+        self.webview.hide()
+        self.sleep_label.show()
+        
+    def wake_up(self):
+        if not self.is_sleeping:
+            return
+        self.is_sleeping = False
+        self.sleep_label.hide()
+        self.webview.show()
+        self.load(self._current_url or self._pending_url)
 
     def _do_pending_load(self):
         if self._pending_url:
@@ -306,9 +344,12 @@ class BrowserTab(QWidget):
 
     def _poll(self):
         """Polling URL karena qtwebview2 rc5 belum expose Qt signals."""
+        if self.is_sleeping:
+            return
+            
         if not hasattr(self, '_new_window_handler_set'):
             try:
-                if hasattr(self.webview, "_webview") and self.webview._webview:
+                if hasattr(self, 'webview') and hasattr(self.webview, "_webview") and self.webview._webview:
                     def on_new_window(url):
                         if self.main_window:
                             QTimer.singleShot(0, lambda: self.main_window.new_tab(url=url))
@@ -361,9 +402,14 @@ class BrowserTab(QWidget):
 
         try:
             url_val = self.webview.url
-            url_str = url_val() if callable(url_val) else str(url_val)
+            url_str = url_val() if callable(url_val) else url_val
         except:
             url_str = ""
+
+        if url_str is None:
+            url_str = ""
+        else:
+            url_str = str(url_str)
 
         # Karena eval_js di wry tidak me-return nilai secara sinkron, kita buat judul dari URL
         title_str = ""
@@ -444,6 +490,8 @@ class YuukaaBrowser(QMainWindow):
         self.tab_bar.setExpanding(False)
         self.tab_bar.tabCloseRequested.connect(self.close_tab)
         self.tab_bar.currentChanged.connect(self.on_tab_changed)
+        # Disable scroll wheel on TabBar to prevent rapid switching/waking crashes
+        self.tab_bar.wheelEvent = lambda event: event.ignore()
         
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -518,7 +566,7 @@ class YuukaaBrowser(QMainWindow):
         menu.addAction(a_clear)
 
         a_devtools = QAction("🔧 DevTools", self)
-        a_devtools.triggered.connect(lambda: self._cur_tab() and self._cur_tab().webview.open_devtools())
+        a_devtools.triggered.connect(lambda: self._cur_tab() and hasattr(self._cur_tab(), 'webview') and self._cur_tab().webview.open_devtools())
         menu.addAction(a_devtools)
 
         menu_btn = QToolButton()
@@ -529,8 +577,55 @@ class YuukaaBrowser(QMainWindow):
 
         self.apply_theme()
 
+        # Memory Saver Timer (runs every 1 minute)
+        self.memory_saver_timer = QTimer(self)
+        self.memory_saver_timer.setInterval(60000)
+        self.memory_saver_timer.timeout.connect(self._run_memory_saver)
+        self.memory_saver_timer.start()
+
         # Home tab
         self.new_tab(url=self.get_home_url(), label="Homepage")
+
+    def _run_memory_saver(self, force=False):
+        # 5 minutes timeout by default
+        timeout_seconds = 5 * 60 
+        now = time.time()
+        active_idx = self.tab_layout.currentIndex()
+        
+        tabs_to_sleep = []
+        for i in range(self.tab_layout.count()):
+            if i == active_idx:
+                continue # Never sleep the active tab
+                
+            tab = self.tab_layout.widget(i)
+            if isinstance(tab, BrowserTab):
+                is_expired = (now - getattr(tab, 'last_accessed', now)) > timeout_seconds
+                if not getattr(tab, 'is_sleeping', False) and (is_expired or force):
+                    tabs_to_sleep.append(tab)
+                    
+        # Sleep them sequentially to prevent COM/WebView2 overload crash
+        self._sleep_tabs_sequentially(tabs_to_sleep)
+
+    def _sleep_tabs_sequentially(self, tabs):
+        if not tabs:
+            self._schedule_gc()
+            return
+        
+        t = tabs.pop(0)
+        if not getattr(t, 'is_sleeping', False):
+            t.sleep()
+            
+        # Wait 150ms before sleeping the next tab to give Qt time to breathe
+        QTimer.singleShot(150, lambda: self._sleep_tabs_sequentially(tabs))
+
+    def _schedule_gc(self):
+        if not hasattr(self, '_gc_timer'):
+            self._gc_timer = QTimer(self)
+            self._gc_timer.setSingleShot(True)
+            self._gc_timer.timeout.connect(gc.collect)
+        
+        # Debounce GC to 1500ms
+        self._gc_timer.start(1500)
 
     def get_home_url(self):
         import urllib.parse
@@ -591,14 +686,19 @@ class YuukaaBrowser(QMainWindow):
             except:
                 pass
             self.tab_layout.removeWidget(widget)
+            widget.webview.setParent(None) # Detach from UI tree immediately
             widget.deleteLater()
-            # OPTIMASI RAM: Paksa pembersihan memori sisa tab dari Python RAM
-            gc.collect()
+            # OPTIMASI RAM: Paksa pembersihan memori secara aman (debounced)
+            self._schedule_gc()
 
     def on_tab_changed(self, i):
         self.tab_layout.setCurrentIndex(i)
         tab = self.tab_layout.widget(i)
         if isinstance(tab, BrowserTab):
+            tab.last_accessed = time.time()
+            if getattr(tab, 'is_sleeping', False):
+                tab.wake_up()
+                
             self.update_url_bar_str(tab.url_str())
             
             # Update window title to match the currently selected tab
@@ -608,8 +708,9 @@ class YuukaaBrowser(QMainWindow):
             self.setWindowTitle(f"{title} - Yuukaa Search V12")
             
             self.url_bar.clearFocus()
-            tab.webview.raise_()
-            tab.webview.setFocus()
+            if hasattr(tab, 'webview'):
+                tab.webview.raise_()
+                tab.webview.setFocus()
 
     def update_url_bar_str(self, url_str):
         if not url_str or "home.html" in url_str:
@@ -721,8 +822,12 @@ class YuukaaBrowser(QMainWindow):
         elif action == "clear-history":
             self.clear_data()
             
-        elif action == "new-incognito":
+        elif action == "new_incognito":
             self.new_tab(url="yuukaa://home", incognito=True)
+            
+        elif action == "flush_ram":
+            # Force all inactive tabs to sleep and flush GC
+            self._run_memory_saver(force=True)
             
         elif action == "upload-bg":
             from PyQt6.QtWidgets import QFileDialog
