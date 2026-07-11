@@ -43,6 +43,104 @@ from urllib.parse import urlparse
 import threading
 import gc
 import time
+import ctypes
+import ctypes.wintypes
+
+class KBDLLHOOKSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("vkCode", ctypes.wintypes.DWORD),
+        ("scanCode", ctypes.wintypes.DWORD),
+        ("flags", ctypes.wintypes.DWORD),
+        ("time", ctypes.wintypes.DWORD),
+        ("dwExtraInfo", ctypes.POINTER(ctypes.wintypes.ULONG))
+    ]
+
+LRESULT = ctypes.c_ssize_t
+HOOKPROC = ctypes.WINFUNCTYPE(LRESULT, ctypes.c_int, ctypes.wintypes.WPARAM, ctypes.wintypes.LPARAM)
+
+_global_hook_proc = None
+_global_hook_id = None
+_browser_instance = None
+_app_instance = None
+
+def is_yuukaa_focused():
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    if not hwnd: return False
+    
+    # 1. Cek apakah ini window utama kita atau anak-anaknya (termasuk Edge WebView2)
+    if _browser_instance:
+        main_hwnd = int(_browser_instance.winId())
+        if hwnd == main_hwnd: return True
+        if ctypes.windll.user32.IsChild(main_hwnd, hwnd): return True
+        
+        buf = ctypes.create_unicode_buffer(256)
+        ctypes.windll.user32.GetClassNameW(hwnd, buf, 256)
+        cname = buf.value
+        if cname in ("Chrome_WidgetWin_0", "Chrome_WidgetWin_1", "Chrome_RenderWidgetHostHWND"):
+            rect = ctypes.wintypes.RECT()
+            ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            main_rect = ctypes.wintypes.RECT()
+            ctypes.windll.user32.GetWindowRect(main_hwnd, ctypes.byref(main_rect))
+            
+            center_x = (rect.left + rect.right) // 2
+            center_y = (rect.top + rect.bottom) // 2
+            if main_rect.left <= center_x <= main_rect.right and main_rect.top <= center_y <= main_rect.bottom:
+                return True
+        
+    # 2. Cek PID sebagai fallback untuk dialog/jendela lain milik Python
+    pid = ctypes.c_ulong()
+    ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return pid.value == os.getpid()
+
+def _keyboard_hook(nCode, wParam, lParam):
+    global _browser_instance, _app_instance
+    try:
+        if nCode >= 0 and _browser_instance and _app_instance:
+            if wParam == 0x0100 or wParam == 0x0104: # WM_KEYDOWN or WM_SYSKEYDOWN
+                if is_yuukaa_focused():
+                    kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+                    vk = kb.vkCode
+                    
+                    # Gunakan GetAsyncKeyState untuk akurasi maksimal di OS level
+                    ctrl = (ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000) != 0
+                    
+                    if ctrl:
+                        if vk == 0x54: # T
+                            QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+                            return 1 # Suppress
+                        elif vk == 0x57: # W
+                            QTimer.singleShot(0, lambda: _browser_instance.close_tab(_browser_instance.tab_bar.currentIndex()))
+                            return 1
+                        elif vk == 0x52: # R
+                            QTimer.singleShot(0, lambda: _browser_instance._cur_tab() and _browser_instance._cur_tab().reload())
+                            return 1
+                        elif 0x31 <= vk <= 0x39: # 1-9
+                            idx = vk - 0x31
+                            QTimer.singleShot(0, lambda: _browser_instance._switch_to_tab_index(idx))
+                            return 1
+    except Exception as e:
+        pass
+    
+    return ctypes.windll.user32.CallNextHookEx(_global_hook_id, nCode, wParam, lParam)
+
+def install_keyboard_hook(app, browser_instance):
+    global _global_hook_proc, _global_hook_id, _browser_instance, _app_instance
+    _browser_instance = browser_instance
+    _app_instance = app
+    
+    # PERBAIKAN KRUSIAL: Mencegah Python 64-bit memotong pointer memori menjadi 32-bit
+    ctypes.windll.kernel32.GetModuleHandleW.restype = ctypes.wintypes.HMODULE
+    ctypes.windll.kernel32.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+    
+    ctypes.windll.user32.SetWindowsHookExW.restype = ctypes.wintypes.HHOOK
+    ctypes.windll.user32.SetWindowsHookExW.argtypes = [ctypes.c_int, HOOKPROC, ctypes.wintypes.HINSTANCE, ctypes.wintypes.DWORD]
+    
+    ctypes.windll.user32.CallNextHookEx.restype = LRESULT
+    ctypes.windll.user32.CallNextHookEx.argtypes = [ctypes.wintypes.HHOOK, ctypes.c_int, ctypes.wintypes.WPARAM, ctypes.wintypes.LPARAM]
+    
+    _global_hook_proc = HOOKPROC(_keyboard_hook)
+    h_mod = ctypes.windll.kernel32.GetModuleHandleW(None)
+    _global_hook_id = ctypes.windll.user32.SetWindowsHookExW(13, _global_hook_proc, h_mod, 0) # WH_KEYBOARD_LL = 13
 
 # ======================================
 # ADBLOCK (domain-based)
@@ -510,27 +608,38 @@ class YuukaaBrowser(QMainWindow):
 
         btn_back = QAction("<- Back", self)
         btn_back.setShortcut(QKeySequence("Alt+Left"))
+        btn_back.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         btn_back.triggered.connect(lambda: self._cur_tab() and self._cur_tab().back())
         nav.addAction(btn_back)
 
         btn_fwd = QAction("Forward ->", self)
         btn_fwd.setShortcut(QKeySequence("Alt+Right"))
+        btn_fwd.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         btn_fwd.triggered.connect(lambda: self._cur_tab() and self._cur_tab().forward())
         nav.addAction(btn_fwd)
 
         btn_reload = QAction("Reload", self)
         btn_reload.setShortcuts([QKeySequence("Ctrl+R"), QKeySequence("F5"), QKeySequence("Ctrl+Shift+R")])
+        btn_reload.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         btn_reload.triggered.connect(lambda: self._cur_tab() and self._cur_tab().reload())
         nav.addAction(btn_reload)
 
         btn_new = QAction("+ New Tab", self)
         btn_new.setShortcut(QKeySequence("Ctrl+T"))
+        btn_new.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         btn_new.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), label="Homepage"))
         nav.addAction(btn_new)
         
         # Tab closing shortcut
         shortcut_close = QShortcut(QKeySequence("Ctrl+W"), self)
+        shortcut_close.setContext(Qt.ShortcutContext.ApplicationShortcut)
         shortcut_close.activated.connect(lambda: self.close_tab(self.tab_bar.currentIndex()))
+        
+        # Tab switching shortcuts (Ctrl+1 to Ctrl+9)
+        for i in range(1, 10):
+            sc = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            sc.setContext(Qt.ShortcutContext.ApplicationShortcut)
+            sc.activated.connect(lambda idx=i-1: self._switch_to_tab_index(idx))
 
         self.url_bar = QLineEdit()
         self.url_bar.setPlaceholderText("Cari atau masukkan URL...")
@@ -642,6 +751,10 @@ class YuukaaBrowser(QMainWindow):
     def _cur_tab(self):
         w = self.tab_layout.currentWidget()
         return w if isinstance(w, BrowserTab) else None
+
+    def _switch_to_tab_index(self, idx):
+        if 0 <= idx < self.tab_bar.count():
+            self.tab_bar.setCurrentIndex(idx)
 
     def new_tab(self, url=None, label="New Tab", incognito=False):
         if url is None:
@@ -952,5 +1065,11 @@ class YuukaaBrowser(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = YuukaaBrowser(config)
+    install_keyboard_hook(app, window)
     window.show()
-    sys.exit(app.exec())
+    
+    ret = app.exec()
+    if _global_hook_id:
+        ctypes.windll.user32.UnhookWindowsHookEx(_global_hook_id)
+        
+    sys.exit(ret)
