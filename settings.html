@@ -319,7 +319,11 @@
         <div class="nav-menu">
             <button class="nav-item active" onclick="scrollToSection('search-engine', this)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                Search engine
+                General Settings
+            </button>
+            <button class="nav-item" onclick="scrollToSection('bookmarks-manager', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                Bookmarks
             </button>
             <button class="nav-item" onclick="scrollToSection('privacy', this)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -335,6 +339,14 @@
     <!-- Main Content -->
     <div class="main-content">
         
+        <!-- Bookmarks Manager -->
+        <div id="bookmarks-manager" class="section">
+            <h2>Bookmarks Management</h2>
+            <div id="bookmarksListContainer">
+                <!-- Bookmarks will be rendered here via JS -->
+            </div>
+        </div>
+
         <!-- Search Engine -->
         <div id="search-engine" class="section">
             <h2>General Settings</h2>
@@ -576,7 +588,52 @@
                     document.getElementById('customDnsUrl').value = urlParams.get('customDns') || "";
                 }
             }
+            
+            renderBookmarks();
+        }
+
+        function renderBookmarks() {
+            const container = document.getElementById('bookmarksListContainer');
+            if (!window.YUUKAA_BOOKMARKS || window.YUUKAA_BOOKMARKS.length === 0) {
+                container.innerHTML = '<div class="card"><div class="list-item"><div class="item-desc">No bookmarks found.</div></div></div>';
+                return;
+            }
+
+            // Group by folder
+            const grouped = {};
+            window.YUUKAA_BOOKMARKS.forEach(b => {
+                const folder = b.folder || "All Bookmarks";
+                if(!grouped[folder]) grouped[folder] = [];
+                grouped[folder].push(b);
+            });
+
+            let html = '';
+            for (const folder in grouped) {
+                html += `<h4>📁 ${folder}</h4><div class="card">`;
+                grouped[folder].forEach(b => {
+                    const safeUrl = b.url.replace(/"/g, '&quot;');
+                    const safeTitle = (b.title || b.url).replace(/"/g, '&quot;');
+                    
+                    html += `
+                    <div class="list-item">
+                        <div class="item-info" style="cursor: pointer;" onclick="window.location.href='${safeUrl}'" title="Go to ${safeTitle}">
+                            <div class="item-title" style="color: var(--accent-color);">${safeTitle}</div>
+                            <div class="item-desc" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;">${safeUrl}</div>
+                        </div>
+                        <div style="display:flex; gap: 8px;">
+                            <button class="btn btn-outline" onclick="deleteBookmark('${safeUrl}')">Delete</button>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function deleteBookmark(url) {
+            window.location.href = `yuukaa-action://delete-bookmark?url=${encodeURIComponent(url)}`;
         }
     </script>
+    <script src="bookmarks_data.js"></script>
 </body>
 </html>

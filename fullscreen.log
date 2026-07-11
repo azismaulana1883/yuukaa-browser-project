@@ -1,0 +1,50 @@
+
+[05:15:49] Fullscreen Request: enter=True
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x000002146EEF8FF0>
+  container: <PyQt6.QtWidgets.QWidget object at 0x000002146EEF91D0>
+  Entering fullscreen mode...
+  Successfully entered fullscreen mode!
+
+[05:15:51] Fullscreen Request: enter=False
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x000002146EEF8FF0>
+  container: <PyQt6.QtWidgets.QWidget object at 0x000002146EEF91D0>
+  Exiting fullscreen mode...
+  CRASHED: wrapped C/C++ object of type QWidget has been deleted
+Traceback (most recent call last):
+  File "G:\yuukaa-browser\main.py", line 248, in _logging_fullscreen_handler
+    self._resize_webview()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\azism\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\qtwebview2\widget.py", line 258, in _resize_webview
+    w = self._container.width()
+RuntimeError: wrapped C/C++ object of type QWidget has been deleted
+
+
+[05:16:44] Fullscreen Request: enter=True
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x000001D220839810>
+  container: <PyQt6.QtWidgets.QWidget object at 0x000001D2208399F0>
+  Entering fullscreen mode...
+  Successfully entered fullscreen mode!
+
+[05:16:46] Fullscreen Request: enter=False
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x000001D220839810>
+  container: <PyQt6.QtWidgets.QWidget object at 0x000001D2208399F0>
+  Exiting fullscreen mode...
+  Successfully exited fullscreen mode!
+
+[05:18:21] Fullscreen Request: enter=True
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x0000029DFA105A90>
+  container: <PyQt6.QtWidgets.QWidget object at 0x0000029DFA105C70>
+  Entering fullscreen mode...
+  Successfully entered fullscreen mode!
+
+[05:18:23] Fullscreen Request: enter=False
+  native_child: False
+  anchor: <qtwebview2._anchor._AnchorWindow object at 0x0000029DFA105A90>
+  container: <PyQt6.QtWidgets.QWidget object at 0x0000029DFA105C70>
+  Exiting fullscreen mode...
+  Successfully exited fullscreen mode!

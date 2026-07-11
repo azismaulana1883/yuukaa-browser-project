@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yuukaa Search</title>
+    <title>Yuukaa Home</title>
     <style>
         :root {
             /* Light theme */
@@ -13,11 +13,20 @@
             --input-border: #dfe1e5;
             --input-border-hover: #dfe1e5;
             --input-shadow: rgba(32,33,36,0.28);
-            --btn-bg: #f8f9fa;
-            --btn-border: #f8f9fa;
-            --btn-text: #3c4043;
-            --btn-hover-border: #dadce0;
-            --btn-hover-text: #202124;
+            --icon-color: #5f6368;
+            --shortcut-bg: #f1f3f4;
+            --shortcut-hover: #e8eaed;
+            --nav-text: #4d5156;
+            
+            /* Modal / Menus */
+            --modal-bg: #ffffff;
+            --modal-text: #202124;
+            --modal-input-bg: #f1f3f4;
+            --modal-input-border: #dfe1e5;
+            --modal-btn-primary: #8ab4f8; /* Will adjust below */
+            --modal-btn-text: #1a73e8;
+            --menu-bg: #ffffff;
+            --menu-hover: #f1f3f4;
         }
 
         [data-theme="dark"] {
@@ -28,11 +37,31 @@
             --input-border: #5f6368;
             --input-border-hover: rgba(223,225,229,0);
             --input-shadow: rgba(32,33,36,0.28);
-            --btn-bg: #303134;
-            --btn-border: #303134;
-            --btn-text: #e8eaed;
-            --btn-hover-border: #5f6368;
-            --btn-hover-text: #ffffff;
+            --icon-color: #9aa0a6;
+            --shortcut-bg: #303134;
+            --shortcut-hover: #3c4043;
+            --nav-text: #e8eaed;
+            
+            /* Modal / Menus */
+            --modal-bg: #292a2d;
+            --modal-text: #e8eaed;
+            --modal-input-bg: #3b3336; /* Matching user screenshot vibe */
+            --modal-input-border: #ffb3c6; /* Pink accent */
+            --modal-btn-primary: #ffb3c6;
+            --modal-btn-text: #ffb3c6;
+            --menu-bg: #292a2d;
+            --menu-hover: #3c4043;
+        }
+
+        body.has-bg {
+            --text-color: #ffffff;
+            --nav-text: #ffffff;
+            --input-bg: #ffffff;
+            --input-border: transparent;
+            --input-border-hover: transparent;
+            --icon-color: #5f6368;
+            --shortcut-bg: rgba(32,33,36,0.5);
+            --shortcut-hover: rgba(32,33,36,0.7);
         }
 
         @keyframes fadeIn {
@@ -54,6 +83,7 @@
             position: relative;
             z-index: 0;
             animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            overflow: hidden;
         }
 
         #bg-image-layer {
@@ -69,55 +99,102 @@
         #bg-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
+            background-color: rgba(0, 0, 0, 0.05);
             z-index: -1;
             display: none;
         }
+        /* Logo */
+        .logo-container {
+            margin-bottom: 30px;
+            margin-top: -100px;
+        }
+        
         .logo {
-            font-size: 90px;
+            font-size: 88px;
             font-weight: bold;
+            letter-spacing: -3px;
+            text-align: center;
             background: linear-gradient(45deg, #7c4dff, #ff4081);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 35px;
-            letter-spacing: -2px;
+            user-select: none;
         }
+
+        body.has-bg .logo {
+            background: none;
+            color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Search Bar */
         .search-container {
             width: 100%;
-            max-width: 600px;
+            max-width: 584px;
             position: relative;
+            z-index: 5;
         }
+        
         .search-box {
             width: 100%;
-            padding: 16px 25px 16px 45px;
+            padding: 0 160px 0 50px;
+            height: 48px;
             font-size: 16px;
-            border-radius: 30px;
+            border-radius: 24px;
             border: 1px solid var(--input-border);
             background-color: var(--input-bg);
-            color: var(--text-color);
+            color: #202124;
             outline: none;
             box-sizing: border-box;
-            transition: all 0.3s ease;
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
-        .search-box:hover {
-            box-shadow: 0 1px 6px var(--input-shadow);
-            border-color: var(--input-border-hover);
-        }
-        .search-box:focus {
-            box-shadow: 0 1px 6px var(--input-shadow);
-            border-color: #7c4dff;
-        }
+        
+        body:not(.has-bg)[data-theme="dark"] .search-box { color: #ffffff; }
+        .search-box:hover, .search-box:focus { box-shadow: 0 1px 6px var(--input-shadow); }
+        
         .search-icon {
             position: absolute;
-            left: 15px;
-            top: 24px;
+            left: 18px;
+            top: 50%;
             transform: translateY(-50%);
-            color: #9aa0a6;
+            color: var(--icon-color);
             width: 20px;
             height: 20px;
+            pointer-events: none;
         }
+        
+        .search-bar-icons {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .search-bar-icons svg { width: 24px; height: 24px; cursor: pointer; }
+
+        .ai-mode-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #202124;
+            background-color: #f1f3f4;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+        
+        body:not(.has-bg)[data-theme="dark"] .ai-mode-btn {
+            background-color: #303134;
+            color: #e8eaed;
+        }
+
+        /* Suggestions */
         .suggestions-box {
             position: absolute;
             top: 100%;
@@ -126,43 +203,263 @@
             background-color: var(--input-bg);
             border: 1px solid var(--input-border);
             border-top: none;
-            border-radius: 0 0 20px 20px;
+            border-radius: 0 0 24px 24px;
             box-shadow: 0 4px 6px var(--input-shadow);
-            margin-top: -10px;
-            padding-top: 10px;
+            margin-top: -24px;
+            padding-top: 24px;
             overflow: hidden;
-            z-index: 10;
+            z-index: -1;
             display: none;
         }
+        
+        .search-container:focus-within .suggestions-box[style*="display: block"] { border-top-color: transparent; }
+
         .suggestion-item {
-            padding: 10px 20px 10px 45px;
+            padding: 8px 16px;
             cursor: pointer;
             text-align: left;
+            color: #202124;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 14px;
+        }
+        
+        body:not(.has-bg)[data-theme="dark"] .suggestion-item { color: #ffffff; }
+        .suggestion-item:hover, .suggestion-item.active { background-color: #f1f3f4; }
+        body:not(.has-bg)[data-theme="dark"] .suggestion-item:hover, 
+        body:not(.has-bg)[data-theme="dark"] .suggestion-item.active { background-color: #3c4043; }
+
+        .sugg-icon {
+            width: 16px;
+            height: 16px;
+            fill: #9aa0a6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sugg-icon img { width: 16px; height: 16px; }
+        .sugg-text {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Shortcuts */
+        .shortcuts-container {
+            margin-top: 35px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 600px;
+        }
+        
+        .shortcut-item {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            text-decoration: none;
             color: var(--text-color);
+            width: 88px;
+            padding: 10px 0;
+            border-radius: 8px;
             transition: background-color 0.2s;
         }
-        .suggestion-item:hover, .suggestion-item.active {
-            background-color: var(--btn-hover-border); /* using as highlight */
-        }
-        .search-buttons {
-            margin-top: 30px;
+        
+        .shortcut-item:hover { background-color: var(--shortcut-hover); }
+        body:not(.has-bg) .shortcut-item:hover { background-color: #f1f3f4; }
+        [data-theme="dark"] body:not(.has-bg) .shortcut-item:hover { background-color: #303134; }
+
+        .shortcut-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--shortcut-bg);
             display: flex;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-        .btn {
-            background-color: var(--btn-bg);
-            border: 1px solid var(--btn-border);
-            color: var(--btn-text);
-            padding: 10px 20px;
-            font-size: 14px;
-            border-radius: 4px;
+        
+        body:not(.has-bg) .shortcut-icon { background-color: #f1f3f4; }
+        [data-theme="dark"] body:not(.has-bg) .shortcut-icon { background-color: #303134; }
+        
+        .shortcut-icon svg { width: 24px; height: 24px; fill: var(--text-color); }
+        
+        .shortcut-label {
+            font-size: 13px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            text-shadow: body.has-bg ? 0 1px 3px rgba(0,0,0,0.5) : none;
+        }
+
+        body.has-bg .shortcut-label {
+            text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+            font-weight: 500;
+        }
+        body.has-bg .shortcut-icon svg { fill: #ffffff; }
+
+        /* Shortcut Menu Button */
+        .shortcut-menu-btn {
+            position: absolute;
+            top: 2px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--menu-bg);
+            display: none;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 10;
         }
-        .btn:hover {
-            border: 1px solid var(--btn-hover-border);
-            color: var(--btn-hover-text);
+        .shortcut-item:hover .shortcut-menu-btn { display: flex; }
+        .shortcut-menu-btn svg { width: 16px; height: 16px; fill: var(--text-color); }
+        .shortcut-menu-btn:hover { background: var(--menu-hover); }
+
+        /* Modal & Context Menu */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
         }
+        
+        .modal {
+            background: var(--modal-bg);
+            border-radius: 8px;
+            width: 512px;
+            padding: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            color: var(--modal-text);
+        }
+        
+        .modal h2 { margin: 0 0 24px 0; font-size: 15px; font-weight: 400; }
+        .modal-field { margin-bottom: 16px; }
+        .modal-label { display: block; font-size: 12px; margin-bottom: 8px; color: var(--modal-text); opacity: 0.8; }
+        
+        .modal-input {
+            width: 100%;
+            background: var(--modal-input-bg);
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 8px 8px 0 0;
+            color: var(--modal-text);
+            padding: 12px 16px;
+            font-size: 13px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        .modal-input:focus {
+            border-bottom-color: var(--modal-btn-primary);
+            outline: none;
+        }
+        
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 32px; }
+        
+        .modal-btn {
+            background: transparent;
+            border: 1px solid var(--icon-color);
+            color: var(--modal-btn-text);
+            padding: 8px 24px;
+            border-radius: 18px; /* pill shape */
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .modal-btn.primary {
+            background: var(--modal-btn-primary);
+            color: #202124;
+            border: none;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: var(--menu-bg);
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            padding: 8px 0;
+            display: none;
+            z-index: 100;
+            min-width: 160px;
+        }
+        
+        .context-item {
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        
+        .context-item:hover { background: var(--menu-hover); }
+
+        /* Voice Search Overlay */
+        .voice-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(32,33,36,0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .voice-overlay-close {
+            position: absolute;
+            top: 24px; right: 24px;
+            cursor: pointer;
+            fill: #9aa0a6;
+            width: 24px; height: 24px;
+        }
+        .voice-overlay-close:hover { fill: #e8eaed; }
+        .voice-content {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+        }
+        .voice-text {
+            color: #9aa0a6;
+            font-size: 32px;
+            font-weight: 400;
+            max-width: 600px;
+            word-wrap: break-word;
+        }
+        .voice-text.active { color: #e8eaed; }
+        .voice-mic-container {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background-color: #ea4335;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(234, 67, 53, 0.4);
+            animation: pulse 2s infinite;
+        }
+        .voice-mic-container svg { width: 64px; height: 64px; fill: white; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
+            70% { box-shadow: 0 0 0 30px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+        }
+
     </style>
 </head>
 <body data-theme="dark" id="bodyTheme">
@@ -178,29 +475,344 @@
                 bgLayer.style.backgroundImage = `url('file:///${encodeURI(bgPath).replace(/'/g, "%27")}')`;
                 bgLayer.style.display = 'block';
                 bgOverlay.style.display = 'block';
-                document.body.style.color = '#ffffff';
+                document.body.classList.add('has-bg');
             }
         })();
     </script>
 
-    <div class="logo">Yuukaa</div>
+    <div class="logo-container">
+        <div class="logo">Yuukaa</div>
+    </div>
     
     <div class="search-container">
         <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="search-icon"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
-        <input type="text" class="search-box" id="searchInput" placeholder="Cari Sesuatu..." autocomplete="off" autofocus>
+        <input type="text" class="search-box" id="searchInput" placeholder="Search Google or type a URL" autocomplete="off" autofocus>
+        
+        <div class="search-bar-icons">
+            <svg id="voiceSearchBtn" onclick="startVoiceSearch()" title="Search by voice" focusable="false" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285f4" d="m12 15c1.66 0 3-1.31 3-2.97v-7.02c0-1.66-1.34-3.01-3-3.01s-3 1.34-3 3.01v7.02c0 1.66 1.34 2.97 3 2.97z"></path><path fill="#34a853" d="m11 18.08h2v3.92h-2z"></path><path fill="#fbbc05" d="m7.05 16.87c-1.27-1.33-2.05-2.83-2.05-4.87h2c0 1.45 0.56 2.42 1.47 3.38v0.32l-1.15 1.18z"></path><path fill="#ea4335" d="m12 16.93a4.97 5.25 0 0 1 -3.54 -1.55l-1.41 1.49c1.26 1.34 3.02 2.13 4.95 2.13 3.87 0 6.99-2.92 6.99-7h-1.99c0 2.92-2.24 4.93-5 4.93z"></path></svg>
+            <svg id="imageSearchBtn" onclick="startImageSearch()" title="Search by image" focusable="false" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg"><rect fill="none" height="192" width="192"></rect><g><circle cx="144" cy="144" fill="#34a853" r="16"></circle><circle cx="96" cy="104" fill="#4285f4" r="24"></circle><path d="M24,136v40h40l0-16H40v-24H24z" fill="#fbbc05"></path><path d="M64,16H24v40h16V40h24V16z" fill="#ea4335"></path><path d="M128,16h-40l0,16h40v24h16V16H128z" fill="#4285f4"></path></g></svg>
+            <div id="aiModeBtn" class="ai-mode-btn" onclick="toggleAiMode()" title="Chat with Gemini">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.284 10.957L19.467 9.87353C18.6725 9.40059 18.0645 8.71887 17.728 7.9157L16.8953 5.92207C16.3571 4.63351 14.5422 4.63351 14.0039 5.92207L13.1712 7.9157C12.8348 8.71887 12.2268 9.40059 11.4322 9.87353L9.61528 10.957C8.42398 11.6661 8.42398 13.3853 9.61528 14.0945L11.4322 15.178C12.2268 15.6509 12.8348 16.3326 13.1712 17.1358L14.0039 19.1294C14.5422 20.418 16.3571 20.418 16.8953 19.1294L17.728 17.1358C18.0645 16.3326 18.6725 15.6509 19.467 15.178L21.284 14.0945C22.4753 13.3853 22.4753 11.6661 21.284 10.957Z" fill="url(#paint0_linear)"/><path d="M6.35738 10.875L5.61726 9.38791C5.29367 8.73775 4.67383 8.24354 3.96645 8.07167L2.43438 7.69947C1.4116 7.45102 1.4116 5.98642 2.43438 5.73797L3.96645 5.36578C4.67383 5.1939 5.29367 4.6997 5.61726 4.04953L6.35738 2.56244C6.85176 1.569 8.2709 1.569 8.76527 2.56244L9.50539 4.04953C9.82898 4.6997 10.4488 5.1939 11.1562 5.36578L12.6883 5.73797C13.711 5.98642 13.711 7.45102 12.6883 7.69947L11.1562 8.07167C10.4488 8.24354 9.82898 8.73775 9.50539 9.38791L8.76527 10.875C8.2709 11.8685 6.85176 11.8685 6.35738 10.875Z" fill="url(#paint1_linear)"/><defs><linearGradient id="paint0_linear" x1="10" y1="5.625" x2="21" y2="19.375" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset="0.333" stop-color="#9B72CB"/><stop offset="0.667" stop-color="#D96570"/><stop offset="1" stop-color="#F39200"/></linearGradient><linearGradient id="paint1_linear" x1="1.75" y1="2.1875" x2="13.25" y2="11.25" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset="0.333" stop-color="#9B72CB"/><stop offset="0.667" stop-color="#D96570"/><stop offset="1" stop-color="#F39200"/></linearGradient></defs></svg>
+                AI Mode
+            </div>
+            <svg id="closeAiBtn" onclick="toggleAiMode()" style="display: none; fill: var(--icon-color);" title="Close AI Mode" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </div>
+        
         <div id="suggestionsBox" class="suggestions-box"></div>
     </div>
 
-    <div class="search-buttons">
-        <button class="btn" onclick="search()">Penelusuran</button>
-        <button class="btn" onclick="search()">Saya Lagi Beruntung</button>
+    <div class="shortcuts-container" id="shortcutsContainer">
+        <!-- Rendered by JS -->
+    </div>
+    
+    <!-- Shortcut Modal -->
+    <div class="modal-overlay" id="shortcutModal">
+        <div class="modal">
+            <h2 id="modalTitle">Add shortcut</h2>
+            <div class="modal-field">
+                <label class="modal-label">Name</label>
+                <input type="text" class="modal-input" id="scName" autocomplete="off">
+            </div>
+            <div class="modal-field">
+                <label class="modal-label">URL</label>
+                <input type="text" class="modal-input" id="scUrl" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="saveShortcutFromModal()">Done</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-item" id="ctxEdit">Edit shortcut</div>
+        <div class="context-item" id="ctxRemove">Remove</div>
+    </div>
+
+    <!-- Voice Search Overlay -->
+    <div class="voice-overlay" id="voiceOverlay">
+        <svg class="voice-overlay-close" onclick="closeVoiceSearch()" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <div class="voice-content">
+            <div class="voice-text" id="voiceText">Listening...</div>
+            <div class="voice-mic-container">
+                <svg focusable="false" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 15c1.66 0 3-1.31 3-2.97v-7.02c0-1.66-1.34-3.01-3-3.01s-3 1.34-3 3.01v7.02c0 1.66 1.34 2.97 3 2.97z"></path><path d="m11 18.08h2v3.92h-2z"></path><path d="m7.05 16.87c-1.27-1.33-2.05-2.83-2.05-4.87h2c0 1.45 0.56 2.42 1.47 3.38v0.32l-1.15 1.18z"></path><path d="m12 16.93a4.97 5.25 0 0 1 -3.54 -1.55l-1.41 1.49c1.26 1.34 3.02 2.13 4.95 2.13 3.87 0 6.99-2.92 6.99-7h-1.99c0 2.92-2.24 4.93-5 4.93z"></path></svg>
+            </div>
+        </div>
     </div>
 
     <script>
+        // --- Shortcuts Logic ---
+        const DEFAULT_SHORTCUTS = [
+            { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com', isDefault: true }
+        ];
+
+        let shortcuts = [];
+        let editingId = null;
+        let activeMenuId = null;
+
+        function initShortcuts() {
+            try {
+                const saved = localStorage.getItem('yuukaa_shortcuts');
+                if (saved) {
+                    shortcuts = JSON.parse(saved);
+                } else {
+                    shortcuts = [...DEFAULT_SHORTCUTS];
+                }
+            } catch (e) {
+                shortcuts = [...DEFAULT_SHORTCUTS];
+            }
+            renderShortcuts();
+        }
+
+        function saveShortcuts() {
+            localStorage.setItem('yuukaa_shortcuts', JSON.stringify(shortcuts));
+            renderShortcuts();
+        }
+
+        function getFaviconUrl(url) {
+            try {
+                const domain = new URL(url).hostname;
+                return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+            } catch {
+                return '';
+            }
+        }
+
+        function renderShortcuts() {
+            const container = document.getElementById('shortcutsContainer');
+            container.innerHTML = '';
+            
+            shortcuts.forEach(sc => {
+                const item = document.createElement('a');
+                item.href = sc.url;
+                item.className = 'shortcut-item';
+                
+                let iconHtml = '';
+                if (sc.isDefault && sc.id === 'gemini') {
+                    // Gemini SVG
+                    iconHtml = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.284 10.957L19.467 9.87353C18.6725 9.40059 18.0645 8.71887 17.728 7.9157L16.8953 5.92207C16.3571 4.63351 14.5422 4.63351 14.0039 5.92207L13.1712 7.9157C12.8348 8.71887 12.2268 9.40059 11.4322 9.87353L9.61528 10.957C8.42398 11.6661 8.42398 13.3853 9.61528 14.0945L11.4322 15.178C12.2268 15.6509 12.8348 16.3326 13.1712 17.1358L14.0039 19.1294C14.5422 20.418 16.3571 20.418 16.8953 19.1294L17.728 17.1358C18.0645 16.3326 18.6725 15.6509 19.467 15.178L21.284 14.0945C22.4753 13.3853 22.4753 11.6661 21.284 10.957Z" fill="url(#paint4_linear)"/><path d="M6.35738 10.875L5.61726 9.38791C5.29367 8.73775 4.67383 8.24354 3.96645 8.07167L2.43438 7.69947C1.4116 7.45102 1.4116 5.98642 2.43438 5.73797L3.96645 5.36578C4.67383 5.1939 5.29367 4.6997 5.61726 4.04953L6.35738 2.56244C6.85176 1.569 8.2709 1.569 8.76527 2.56244L9.50539 4.04953C9.82898 4.6997 10.4488 5.1939 11.1562 5.36578L12.6883 5.73797C13.711 5.98642 13.711 7.45102 12.6883 7.69947L11.1562 8.07167C10.4488 8.24354 9.82898 8.73775 9.50539 9.38791L8.76527 10.875C8.2709 11.8685 6.85176 11.8685 6.35738 10.875Z" fill="url(#paint5_linear)"/><defs><linearGradient id="paint4_linear" x1="10" y1="5.625" x2="21" y2="19.375" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset="0.333" stop-color="#9B72CB"/><stop offset="0.667" stop-color="#D96570"/><stop offset="1" stop-color="#F39200"/></linearGradient><linearGradient id="paint5_linear" x1="1.75" y1="2.1875" x2="13.25" y2="11.25" gradientUnits="userSpaceOnUse"><stop stop-color="#4285F4"/><stop offset="0.333" stop-color="#9B72CB"/><stop offset="0.667" stop-color="#D96570"/><stop offset="1" stop-color="#F39200"/></linearGradient></defs></svg>`;
+                    item.innerHTML = `<div class="shortcut-icon" style="background-color: #ffffff;">${iconHtml}</div><div class="shortcut-label">${sc.name}</div>`;
+                } else {
+                    const iconUrl = getFaviconUrl(sc.url);
+                    item.innerHTML = `<div class="shortcut-icon"><img src="${iconUrl}" width="24" height="24" onerror="this.style.display='none'"></div><div class="shortcut-label">${sc.name}</div>`;
+                }
+
+                // Menu button (3 dots)
+                const menuBtn = document.createElement('div');
+                menuBtn.className = 'shortcut-menu-btn';
+                menuBtn.innerHTML = `<svg focusable="false" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>`;
+                menuBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showContextMenu(e, sc.id);
+                };
+                item.appendChild(menuBtn);
+                container.appendChild(item);
+            });
+
+            // Add "Add shortcut" button
+            const addBtn = document.createElement('div');
+            addBtn.className = 'shortcut-item';
+            addBtn.onclick = () => openModal();
+            addBtn.innerHTML = `
+                <div class="shortcut-icon">
+                    <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+                </div>
+                <div class="shortcut-label">Add shortcut</div>
+            `;
+            container.appendChild(addBtn);
+        }
+
+        function openModal(id = null) {
+            editingId = id;
+            const modal = document.getElementById('shortcutModal');
+            const title = document.getElementById('modalTitle');
+            const nameInput = document.getElementById('scName');
+            const urlInput = document.getElementById('scUrl');
+            
+            if (id) {
+                const sc = shortcuts.find(s => s.id === id);
+                title.innerText = 'Edit shortcut';
+                nameInput.value = sc.name;
+                urlInput.value = sc.url;
+            } else {
+                title.innerText = 'Add shortcut';
+                nameInput.value = '';
+                urlInput.value = '';
+            }
+            
+            modal.style.display = 'flex';
+            nameInput.focus();
+        }
+
+        function closeModal() {
+            document.getElementById('shortcutModal').style.display = 'none';
+        }
+
+        function saveShortcutFromModal() {
+            const name = document.getElementById('scName').value.trim();
+            let url = document.getElementById('scUrl').value.trim();
+            if (!name || !url) return;
+            
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+            }
+            
+            if (editingId) {
+                const sc = shortcuts.find(s => s.id === editingId);
+                if (sc) {
+                    sc.name = name;
+                    sc.url = url;
+                }
+            } else {
+                shortcuts.push({
+                    id: 'sc_' + Date.now(),
+                    name: name,
+                    url: url
+                });
+            }
+            
+            saveShortcuts();
+            closeModal();
+        }
+
+        function showContextMenu(e, id) {
+            activeMenuId = id;
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'block';
+            
+            // Position menu near the button
+            const btnRect = e.currentTarget.getBoundingClientRect();
+            menu.style.top = (btnRect.bottom + 5) + 'px';
+            menu.style.left = (btnRect.right - menu.offsetWidth) + 'px';
+            
+            // Set actions
+            document.getElementById('ctxEdit').onclick = () => {
+                menu.style.display = 'none';
+                openModal(id);
+            };
+            document.getElementById('ctxRemove').onclick = () => {
+                menu.style.display = 'none';
+                shortcuts = shortcuts.filter(s => s.id !== id);
+                saveShortcuts();
+            };
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('contextMenu');
+            if (menu && !e.target.closest('.shortcut-menu-btn')) {
+                menu.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('shortcutModal').addEventListener('click', (e) => {
+            if (e.target.id === 'shortcutModal') closeModal();
+        });
+
+
+        // --- Search & AI Logic ---
+        let isAiMode = false;
+        let activeRecognition = null;
+        const DEFAULT_PLACEHOLDER = "Search Google or type a URL";
+        const AI_PLACEHOLDER = "Ask anything";
+        
+        // Save original search icon for toggling back
+        const searchIconEl = document.querySelector('.search-icon');
+        const originalSearchIcon = searchIconEl.innerHTML;
+        const aiSearchIcon = `<path d="M21.284 10.957L19.467 9.87353C18.6725 9.40059 18.0645 8.71887 17.728 7.9157L16.8953 5.92207C16.3571 4.63351 14.5422 4.63351 14.0039 5.92207L13.1712 7.9157C12.8348 8.71887 12.2268 9.40059 11.4322 9.87353L9.61528 10.957C8.42398 11.6661 8.42398 13.3853 9.61528 14.0945L11.4322 15.178C12.2268 15.6509 12.8348 16.3326 13.1712 17.1358L14.0039 19.1294C14.5422 20.418 16.3571 20.418 16.8953 19.1294L17.728 17.1358C18.0645 16.3326 18.6725 15.6509 19.467 15.178L21.284 14.0945C22.4753 13.3853 22.4753 11.6661 21.284 10.957Z" fill="url(#paint4_linear)"/><path d="M6.35738 10.875L5.61726 9.38791C5.29367 8.73775 4.67383 8.24354 3.96645 8.07167L2.43438 7.69947C1.4116 7.45102 1.4116 5.98642 2.43438 5.73797L3.96645 5.36578C4.67383 5.1939 5.29367 4.6997 5.61726 4.04953L6.35738 2.56244C6.85176 1.569 8.2709 1.569 8.76527 2.56244L9.50539 4.04953C9.82898 4.6997 10.4488 5.1939 11.1562 5.36578L12.6883 5.73797C13.711 5.98642 13.711 7.45102 12.6883 7.69947L11.1562 8.07167C10.4488 8.24354 9.82898 8.73775 9.50539 9.38791L8.76527 10.875C8.2709 11.8685 6.85176 11.8685 6.35738 10.875Z" fill="url(#paint5_linear)"/>`;
+
+        function toggleAiMode() {
+            isAiMode = !isAiMode;
+            const input = document.getElementById('searchInput');
+            
+            if (isAiMode) {
+                input.placeholder = AI_PLACEHOLDER;
+                document.getElementById('voiceSearchBtn').style.display = 'none';
+                document.getElementById('imageSearchBtn').style.display = 'none';
+                document.getElementById('aiModeBtn').style.display = 'none';
+                document.getElementById('closeAiBtn').style.display = 'block';
+                searchIconEl.innerHTML = aiSearchIcon;
+                searchIconEl.setAttribute('viewBox', '0 0 24 24');
+                input.focus();
+            } else {
+                input.placeholder = DEFAULT_PLACEHOLDER;
+                document.getElementById('voiceSearchBtn').style.display = 'block';
+                document.getElementById('imageSearchBtn').style.display = 'block';
+                document.getElementById('aiModeBtn').style.display = 'flex';
+                document.getElementById('closeAiBtn').style.display = 'none';
+                searchIconEl.innerHTML = originalSearchIcon;
+                input.focus();
+            }
+        }
+
+        function startVoiceSearch() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                window.location.href = "https://www.google.com/";
+                return;
+            }
+            
+            const overlay = document.getElementById('voiceOverlay');
+            const vText = document.getElementById('voiceText');
+            overlay.style.display = 'flex';
+            vText.innerText = "Listening...";
+            vText.classList.remove('active');
+            
+            activeRecognition = new SpeechRecognition();
+            activeRecognition.interimResults = true;
+            
+            activeRecognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                vText.innerText = transcript;
+                vText.classList.add('active');
+                
+                if (event.results[0].isFinal) {
+                    document.getElementById('searchInput').value = transcript;
+                    setTimeout(() => {
+                        closeVoiceSearch();
+                        search();
+                    }, 1000);
+                }
+            };
+            
+            activeRecognition.onend = function() {
+                if (overlay.style.display === 'flex') {
+                    setTimeout(() => {
+                        if (overlay.style.display === 'flex' && vText.innerText === "Listening...") {
+                            closeVoiceSearch();
+                        }
+                    }, 1000);
+                }
+            };
+            
+            activeRecognition.start();
+        }
+
+        function closeVoiceSearch() {
+            if (activeRecognition) {
+                activeRecognition.stop();
+                activeRecognition = null;
+            }
+            document.getElementById('voiceOverlay').style.display = 'none';
+        }
+
+        function startImageSearch() {
+            window.location.href = "https://lens.google.com/";
+        }
+
         function search() {
             var query = document.getElementById('searchInput').value;
             if (query.trim() !== "") {
-                window.location.href = "https://www.google.com/search?q=" + encodeURIComponent(query);
+                if (isAiMode) {
+                    // Route AI queries to Google with udm=50 (AI Mode)
+                    window.location.href = "https://www.google.com/search?q=" + encodeURIComponent(query) + "&udm=50";
+                } else {
+                    window.location.href = "https://www.google.com/search?q=" + encodeURIComponent(query);
+                }
             }
         }
 
@@ -213,30 +825,98 @@
         // --- Suggestions Logic ---
         let currentFocus = -1;
         
-        // JSONP Callback
         function handleSuggestions(data) {
-            const suggestions = data[1];
+            const query = data[0].toLowerCase();
+            const googleSuggestions = data[1];
             const box = document.getElementById('suggestionsBox');
             box.innerHTML = '';
             
-            if (suggestions.length === 0) {
+            let allSuggestions = [];
+            let localMatches = [];
+            
+            // 1. Match against shortcuts
+            if (query.trim().length > 0) {
+                localMatches = shortcuts.filter(sc => 
+                    sc.name.toLowerCase().includes(query) || sc.url.toLowerCase().includes(query)
+                ).slice(0, 3);
+            }
+            
+            localMatches.forEach(sc => {
+                allSuggestions.push({
+                    type: 'url',
+                    title: sc.name,
+                    url: sc.url,
+                    icon: getFaviconUrl(sc.url)
+                });
+            });
+            
+            // 2. Add Google Search suggestions
+            googleSuggestions.forEach(sugg => {
+                // Avoid duplicates if shortcut has same name
+                if (!allSuggestions.find(a => a.text === sugg)) {
+                    allSuggestions.push({
+                        type: 'search',
+                        text: sugg
+                    });
+                }
+            });
+            
+            if (allSuggestions.length === 0) {
                 box.style.display = 'none';
+                document.querySelector('.search-box').style.borderRadius = '24px';
                 return;
             }
             
-            suggestions.forEach((sugg, index) => {
+            const searchSvg = `<svg focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>`;
+            
+            allSuggestions.forEach((item, index) => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item';
-                div.innerText = sugg;
-                div.onclick = function() {
-                    document.getElementById('searchInput').value = sugg;
-                    box.style.display = 'none';
-                    search();
-                };
+                div.setAttribute('data-index', index);
+                
+                let iconHtml = '';
+                let textHtml = '';
+                
+                if (item.type === 'url') {
+                    iconHtml = `<img src="${item.icon}" onerror="this.style.display='none'">`;
+                    const cleanUrl = item.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+                    textHtml = `<b>${item.title}</b> - <span style="color: #8ab4f8;">${cleanUrl}</span>`;
+                    
+                    div.onclick = function() {
+                        window.location.href = item.url;
+                    };
+                } else {
+                    iconHtml = searchSvg;
+                    textHtml = item.text;
+                    
+                    div.onclick = function() {
+                        document.getElementById('searchInput').value = item.text;
+                        box.style.display = 'none';
+                        search();
+                    };
+                }
+                
+                div.innerHTML = `<div class="sugg-icon">${iconHtml}</div><div class="sugg-text">${textHtml}</div>`;
                 box.appendChild(div);
             });
             box.style.display = 'block';
+            document.querySelector('.search-box').style.borderRadius = '24px 24px 0 0';
             currentFocus = -1;
+            
+            // Inline Autocomplete
+            if (localMatches.length > 0) {
+                const firstMatch = localMatches[0];
+                const cleanUrl = firstMatch.url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+                if (cleanUrl.toLowerCase().startsWith(query) && query.length > 1) {
+                    const input = document.getElementById('searchInput');
+                    if (input.selectionStart === input.value.length && input.value.toLowerCase() === query) {
+                        const originalValue = input.value;
+                        const remainder = cleanUrl.substring(query.length);
+                        input.value = originalValue + remainder;
+                        input.setSelectionRange(originalValue.length, input.value.length);
+                    }
+                }
+            }
         }
 
         document.getElementById('searchInput').addEventListener('input', function(e) {
@@ -244,17 +924,17 @@
             const box = document.getElementById('suggestionsBox');
             if (!val) {
                 box.style.display = 'none';
+                document.querySelector('.search-box').style.borderRadius = '24px';
                 return;
             }
             
-            // Inject script for JSONP
             const scriptId = 'jsonp-suggest';
             let oldScript = document.getElementById(scriptId);
             if (oldScript) oldScript.remove();
             
             const script = document.createElement('script');
             script.id = scriptId;
-            script.src = `http://suggestqueries.google.com/complete/search?client=chrome&q=${encodeURIComponent(val)}&callback=handleSuggestions`;
+            script.src = `https://api.bing.com/osjson.aspx?query=${encodeURIComponent(val)}&JsonType=callback&JsonCallback=handleSuggestions`;
             document.body.appendChild(script);
         });
 
@@ -283,7 +963,6 @@
             if (currentFocus >= items.length) currentFocus = 0;
             if (currentFocus < 0) currentFocus = (items.length - 1);
             items[currentFocus].classList.add('active');
-            // Scroll to view if needed
             items[currentFocus].scrollIntoView({ block: 'nearest' });
         }
 
@@ -294,11 +973,11 @@
         }
 
         document.addEventListener('click', function(e) {
-            if (e.target.id !== 'searchInput') {
+            if (e.target.id !== 'searchInput' && !e.target.closest('.suggestions-box')) {
                 document.getElementById('suggestionsBox').style.display = 'none';
+                document.querySelector('.search-box').style.borderRadius = '24px';
             }
         });
-        // -------------------------
 
         // Theme management
         function setTheme(theme) {
@@ -312,6 +991,7 @@
             } else {
                 setTheme('dark');
             }
+            initShortcuts();
         };
     </script>
 </body>

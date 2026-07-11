@@ -1,0 +1,144 @@
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1122, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 746, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 680, in <lambda>
+    btn_new.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1097, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 721, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1102, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 726, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1106, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1106, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1106, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 660, in <lambda>
+    btn_new.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1106, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1108, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 732, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1112, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1116, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 740, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1120, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1120, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1120, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1122, in <module>
+    window = YuukaaBrowser(config)
+  File "G:\yuukaa-browser\main.py", line 746, in __init__
+    self.new_tab(url=self.get_home_url(), label="Homepage")
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=C%3A%2FUsers%2Fazism%2FDownloads%2Fthumb-1920-1210002.png
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 111, in <lambda>
+    QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
+
+[new_tab] called with url=file:///G:/yuukaa-browser/settings.html?theme=dark&engine=google&dns=adguard&customDns=https%3A%2F%2Fdns.adguard-dns.com%2Fdns-query&dl_path=C%3A%2FUsers%2Fazism%2FDownloads
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 843, in open_settings
+    tab = self.new_tab(url=url.toString(), label="⚙️ Settings")
+
+[new_tab] called with url=file:///G:/yuukaa-browser/home.html?theme=dark&bg=G%3A%2FDownload%2F1371397.jpeg
+  File "G:\yuukaa-browser\main.py", line 1126, in <module>
+    ret = app.exec()
+  File "G:\yuukaa-browser\main.py", line 680, in <lambda>
+    btn_new.triggered.connect(lambda: self.new_tab(url=self.get_home_url(), label="Homepage"))
+
+[HOOK] Ctrl+T triggered new_tab
+
+[HOOK] Ctrl+T triggered new_tab

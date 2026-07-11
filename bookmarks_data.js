@@ -1,0 +1,1 @@
+window.YUUKAA_BOOKMARKS = [{"title": "YouTube", "url": "https://www.youtube.com/", "folder": "All Bookmarks"}];

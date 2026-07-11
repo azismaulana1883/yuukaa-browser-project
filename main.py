@@ -32,13 +32,15 @@ def save_config(config):
 config = load_config()
 
 # Import PyQt6 FIRST (tidak perlu env trick karena pakai WebView2)
-from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal, QStringListModel
+from PyQt6.QtCore import QUrl, Qt, QTimer, QEvent, QThread, pyqtSignal, QStringListModel, QPoint
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QLineEdit,
-                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog, QCompleter)
+                             QToolBar, QTabBar, QStackedLayout, QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog, QCompleter,
+                             QDialog, QFormLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QListWidget, QListWidgetItem, QFrame)
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from qtwebview2 import QtWebViewWidget
 import urllib.request
 import urllib.error
+import urllib.parse
 from urllib.parse import urlparse
 import threading
 import gc
@@ -106,6 +108,8 @@ def _keyboard_hook(nCode, wParam, lParam):
                     
                     if ctrl:
                         if vk == 0x54: # T
+                            with open('nav.log', 'a', encoding='utf-8') as f:
+                                f.write("\n[HOOK] Ctrl+T triggered new_tab\n")
                             QTimer.singleShot(0, lambda: _browser_instance.new_tab(url=_browser_instance.get_home_url(), label="Homepage"))
                             return 1 # Suppress
                         elif vk == 0x57: # W
@@ -118,6 +122,12 @@ def _keyboard_hook(nCode, wParam, lParam):
                             idx = vk - 0x31
                             QTimer.singleShot(0, lambda: _browser_instance._switch_to_tab_index(idx))
                             return 1
+                    
+                    if vk == 0x1B: # ESC
+                        if _browser_instance.isFullScreen():
+                            QTimer.singleShot(0, lambda: _browser_instance._cur_tab() and hasattr(_browser_instance._cur_tab(), 'webview') and _browser_instance._cur_tab().webview.eval_js("document.exitFullscreen()"))
+                            return 1 # Suppress
+                            
     except Exception as e:
         pass
     
@@ -192,26 +202,62 @@ COSMETIC_JS = """
 })();
 """
 
-# BUG FIX KEKAL UNTUK FULLSCREEN/MINIMIZE BLACK SCREEN:
-# qtwebview2 memiliki bug fatal di Windows dimana ia melakukan reparenting native HWND 
-# ke jendela baru saat video masuk mode fullscreen. Ini merusak DirectComposition DirectX.
-# Dengan menonaktifkan fungsi ini, video akan membesar 100% mengikuti ukuran tab (Theater Mode)
-# tanpa pernah merusak atau memisahkan native window.
-def _safe_fullscreen_handler(self, enter: bool):
-    # Biarkan WebView2 menangani fullscreen secara internal di dalam batas widget.
-    # Jika webview tidak merespons, trigger resize paksa.
-    from PyQt6.QtGui import QResizeEvent
-    from PyQt6.QtCore import QSize
-    from PyQt6.QtWidgets import QApplication
+def _logging_fullscreen_handler(self, enter: bool):
+    """
+    PERBAIKAN FINAL FULLSCREEN:
+    Jangan pernah me-reparent WebView2 ke jendela baru (itu merusak DirectX / Black Screen).
+    Alih-alih, buat jendela utama (QMainWindow) menjadi Fullscreen, 
+    lalu sembunyikan Tab Bar dan URL Bar agar video memenuhi seluruh layar!
+    """
     try:
-        old_size = self.size()
-        fake_size = QSize(old_size.width(), old_size.height() - 1)
-        QApplication.sendEvent(self, QResizeEvent(fake_size, old_size))
-        QApplication.sendEvent(self, QResizeEvent(old_size, fake_size))
-        self.eval_js("window.dispatchEvent(new Event('resize'))")
-    except: pass
+        main_win = None
+        if hasattr(self, 'parent'):
+            p = self.parent()
+            while p:
+                from PyQt6.QtWidgets import QMainWindow
+                if isinstance(p, QMainWindow):
+                    main_win = p
+                    break
+                p = p.parent()
+                
+        if not main_win:
+            return
+            
+        from PyQt6.QtWidgets import QToolBar
 
-QtWebViewWidget._default_fullscreen_handler = _safe_fullscreen_handler
+        if enter:
+            main_win._was_maximized = main_win.isMaximized()
+            main_win.setUpdatesEnabled(False)
+            try:
+                main_win.showFullScreen()
+                main_win.tab_bar.hide()
+                for tb in main_win.findChildren(QToolBar):
+                    tb.hide()
+            finally:
+                main_win.setUpdatesEnabled(True)
+        else:
+            main_win.setUpdatesEnabled(False)
+            try:
+                if getattr(main_win, '_was_maximized', False):
+                    main_win.showMaximized()
+                else:
+                    main_win.showNormal()
+                    
+                main_win.tab_bar.show()
+                for tb in main_win.findChildren(QToolBar):
+                    tb.show()
+            finally:
+                main_win.setUpdatesEnabled(True)
+                
+        # Paksa resize webview agar ukurannya pas
+        self._resize_webview()
+        
+    except Exception as e:
+        import traceback
+        with open('fullscreen.log', 'a', encoding='utf-8') as f:
+            f.write(f"\nCRASHED in True Fullscreen: {e}\n{traceback.format_exc()}\n")
+
+QtWebViewWidget._default_fullscreen_handler = _logging_fullscreen_handler
 
 
 # ======================================
@@ -294,10 +340,11 @@ class DownloadWorker(QThread):
 # AUTO-SUGGEST WORKER
 # ======================================
 class SuggestWorker(QThread):
-    suggestions_ready = pyqtSignal(list)
+    suggestions_ready = pyqtSignal(list, list)
     
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, browser_window):
+        super().__init__(browser_window)
+        self.browser = browser_window
         self.query = ""
         self._lock = threading.Lock()
         
@@ -307,21 +354,29 @@ class SuggestWorker(QThread):
         
     def run(self):
         with self._lock:
-            q = self.query
+            q = self.query.lower()
         if not q or not q.strip():
-            self.suggestions_ready.emit([])
+            self.suggestions_ready.emit([], [])
             return
             
-        url = f"http://suggestqueries.google.com/complete/search?client=chrome&q={urllib.parse.quote(q)}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+        local_matches = []
+        if hasattr(self.browser, 'bookmarks'):
+            for b in self.browser.bookmarks:
+                if q in b.get('title', '').lower() or q in b.get('url', '').lower():
+                    local_matches.append(b)
+                    if len(local_matches) >= 3:
+                        break
+                        
+        url = f"https://duckduckgo.com/ac/?q={urllib.parse.quote(q)}&type=list"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         try:
             with urllib.request.urlopen(req, timeout=2) as response:
                 import json
                 data = json.loads(response.read().decode('utf-8'))
                 if len(data) > 1 and isinstance(data[1], list):
-                    self.suggestions_ready.emit(data[1][:10]) # Limit to 10 suggestions
-        except Exception as e:
-            pass # Ignore network errors silently
+                    self.suggestions_ready.emit(local_matches, data[1][:7])
+        except:
+            self.suggestions_ready.emit(local_matches, [])
 
 # ======================================
 # BROWSER TAB
@@ -376,10 +431,29 @@ class BrowserTab(QWidget):
             self.webview.set_background_color(43, 43, 43)
         else:
             self.webview.set_background_color(255, 255, 255)
+            
+        # Hubungkan signal judul asli dari halaman web
+        if hasattr(self.webview, 'signals'):
+            self.webview.signals.title_changed.connect(self._on_title_changed)
+            
         self.layout.addWidget(self.webview)
         
         if hasattr(self, '_new_window_handler_set'):
             delattr(self, '_new_window_handler_set')
+
+    def _on_title_changed(self, title):
+        if not title:
+            return
+            
+        # Potong judul jika terlalu panjang agar tab tidak melar
+        if len(title) > 30:
+            title = title[:27] + "..."
+            
+        self._title = title
+        if self.main_window:
+            idx = self.main_window.tab_layout.indexOf(self)
+            if idx != -1:
+                self.main_window._set_tab_title(idx, title, self)
 
     def sleep(self):
         if self.is_sleeping or not hasattr(self, 'webview'):
@@ -509,39 +583,22 @@ class BrowserTab(QWidget):
         else:
             url_str = str(url_str)
 
-        # Karena eval_js di wry tidak me-return nilai secara sinkron, kita buat judul dari URL
-        title_str = ""
-        if url_str and not url_str.startswith("file://") and url_str != "about:blank":
-            from urllib.parse import urlparse
-            parsed = urlparse(url_str)
-            title_str = parsed.netloc.replace("www.", "") if parsed.netloc else "Website"
-            if parsed.path and len(parsed.path) > 1:
-                # Tambahkan sedikit path agar kelihatan navigasi berubah
-                path_part = parsed.path.strip("/")
-                if len(path_part) > 10:
-                    path_part = path_part[:10] + "..."
-                title_str = f"{title_str} - {path_part}"
-        elif "settings.html" in url_str:
-            title_str = "⚙️ Settings"
-        elif "home.html" in url_str:
-            title_str = "Homepage"
-
         # URL changed
         if url_str and url_str not in ("about:blank", "None", "") and url_str != self._current_url:
             self._current_url = url_str
             self._inject_adblock()
+            
+            # Set internal titles for local pages on navigation, otherwise use domain as placeholder
+            if "settings.html" in url_str:
+                self._title = "⚙️ Settings"
+            elif "home.html" in url_str:
+                self._title = "Homepage"
+                    
             if self.main_window:
                 idx = self.main_window.tab_layout.indexOf(self)
+                if idx != -1: self.main_window._set_tab_title(idx, self._title, self)
                 if idx == self.main_window.tab_bar.currentIndex():
                     self.main_window.update_url_bar_str(url_str)
-
-        # Title changed
-        if title_str and title_str != self._title:
-            self._title = title_str
-            if self.main_window:
-                idx = self.main_window.tab_layout.indexOf(self)
-                if idx != -1:
-                    self.main_window._set_tab_title(idx, title_str, self)
 
     def _inject_adblock(self):
         dns_prov = config.get("dns", "none")
@@ -558,13 +615,271 @@ class BrowserTab(QWidget):
 
 
 # ======================================
+# BOOKMARK DIALOG
+# ======================================
+class BookmarkDialog(QDialog):
+    def __init__(self, parent, default_name="", default_folder="All Bookmarks", folders=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setFixedWidth(300)
+        
+        if folders is None:
+            folders = ["All Bookmarks"]
+        if "All Bookmarks" not in folders:
+            folders.insert(0, "All Bookmarks")
+
+        # Theming
+        is_dark = getattr(parent, 'is_dark_mode', False) if parent else False
+        bg_color = "#272727" if is_dark else "#ffffff"
+        text_color = "#f3f4f6" if is_dark else "#111827"
+        border_color = "#3f3f46" if is_dark else "#e5e7eb"
+        input_bg = "#1e1e1e" if is_dark else "#f9fafb"
+        
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_color};
+                border: 1px solid {border_color};
+                border-radius: 8px;
+            }}
+            QLabel {{
+                color: {text_color};
+                font-weight: bold;
+            }}
+            QLineEdit, QComboBox {{
+                background-color: {input_bg};
+                color: {text_color};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                padding: 6px;
+            }}
+            QPushButton {{
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-weight: bold;
+            }}
+            QPushButton#btnDone {{
+                background-color: #f9a8d4; /* Pastel pink, matching user theme */
+                color: #831843;
+            }}
+            QPushButton#btnRemove {{
+                background-color: transparent;
+                color: #ef4444;
+            }}
+            QPushButton#btnRemove:hover {{
+                background-color: rgba(239, 68, 68, 0.1);
+            }}
+        """)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(16, 16, 16, 16)
+        
+        lbl_title = QLabel("Bookmark added")
+        layout.addWidget(lbl_title)
+        
+        form_layout = QFormLayout()
+        
+        self.name_input = QLineEdit(default_name)
+        form_layout.addRow("Name", self.name_input)
+        
+        self.folder_input = QComboBox()
+        self.folder_input.setEditable(True)
+        self.folder_input.addItems(folders)
+        self.folder_input.setCurrentText(default_folder)
+        form_layout.addRow("Folder", self.folder_input)
+        
+        layout.addLayout(form_layout)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        
+        btn_remove = QPushButton("Remove")
+        btn_remove.setObjectName("btnRemove")
+        btn_remove.clicked.connect(self.reject)
+        
+        btn_done = QPushButton("Done")
+        btn_done.setObjectName("btnDone")
+        btn_done.clicked.connect(self.accept)
+        
+        btn_layout.addWidget(btn_remove)
+        btn_layout.addWidget(btn_done)
+        
+        layout.addLayout(btn_layout)
+        self.setLayout(layout)
+
+    def get_data(self):
+        return self.name_input.text(), self.folder_input.currentText()
+
+# ======================================
+# AUTO-SUGGEST UI CLASSES
+# ======================================
+class URLPopupList(QFrame):
+    def __init__(self, parent_lineedit, browser_window):
+        super().__init__(browser_window)
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.parent_lineedit = parent_lineedit
+        self.browser_window = browser_window
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.list_widget = QListWidget()
+        self.list_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.list_widget.itemClicked.connect(self.on_item_clicked)
+        self.layout.addWidget(self.list_widget)
+        
+        self.setObjectName("urlPopupList")
+        self.setStyleSheet("""
+            QFrame#urlPopupList {
+                background-color: #202124;
+                border: 1px solid #5f6368;
+                border-radius: 8px;
+            }
+            QListWidget {
+                background-color: transparent;
+                border: none;
+                outline: none;
+            }
+            QListWidget::item {
+                border: none;
+                color: white;
+            }
+            QListWidget::item:selected {
+                background-color: #3c4043;
+                border-radius: 4px;
+            }
+            QLabel {
+                background-color: transparent;
+                border: none;
+                color: white;
+            }
+        """)
+
+    def update_suggestions(self, local_matches, google_suggestions):
+        self.list_widget.clear()
+        
+        for b in local_matches:
+            item = QListWidgetItem()
+            w = QWidget()
+            l = QHBoxLayout(w)
+            l.setContentsMargins(10, 4, 10, 4)
+            l.setSpacing(10)
+            
+            icon = QLabel("⭐")
+            icon.setStyleSheet("color: #8ab4f8; font-size: 14px;")
+            title = QLabel(f"<b>{b.get('title', '')}</b> - <span style='color:#8ab4f8'>{b.get('url', '').replace('https://', '').replace('http://', '')}</span>")
+            title.setTextFormat(Qt.TextFormat.RichText)
+            
+            l.addWidget(icon)
+            l.addWidget(title)
+            l.addStretch()
+            
+            w.setFixedHeight(32)
+            item.setSizeHint(w.sizeHint())
+            item.setData(Qt.ItemDataRole.UserRole, b.get('url'))
+            
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, w)
+            
+        for sugg in google_suggestions:
+            item = QListWidgetItem()
+            w = QWidget()
+            l = QHBoxLayout(w)
+            l.setContentsMargins(10, 4, 10, 4)
+            l.setSpacing(10)
+            
+            icon = QLabel("🔍")
+            icon.setStyleSheet("color: #9aa0a6; font-size: 14px;")
+            title = QLabel(sugg)
+            
+            l.addWidget(icon)
+            l.addWidget(title)
+            l.addStretch()
+            
+            w.setFixedHeight(32)
+            item.setSizeHint(w.sizeHint())
+            item.setData(Qt.ItemDataRole.UserRole, sugg)
+            
+            self.list_widget.addItem(item)
+            self.list_widget.setItemWidget(item, w)
+            
+        if self.list_widget.count() > 0:
+            self.show_popup()
+        else:
+            self.hide()
+
+    def show_popup(self):
+        pos = self.parent_lineedit.mapToGlobal(QPoint(0, self.parent_lineedit.height() + 5))
+        self.move(pos)
+        self.setFixedWidth(self.parent_lineedit.width())
+        h = min(400, self.list_widget.count() * 40 + 10)
+        self.setFixedHeight(h)
+        self.show()
+
+    def on_item_clicked(self, item):
+        url = item.data(Qt.ItemDataRole.UserRole)
+        self.parent_lineedit.setText(url)
+        self.browser_window.navigate_from_bar()
+        self.hide()
+
+class AddressBar(QLineEdit):
+    def __init__(self, browser_window):
+        super().__init__()
+        self.browser = browser_window
+        self.popup = URLPopupList(self, browser_window)
+        self.textEdited.connect(self._on_text_edited)
+        self._last_len = 0
+        
+    def _on_text_edited(self, text):
+        is_backspace = len(text) < self._last_len
+        self._last_len = len(text)
+        
+        if len(text.strip()) > 0:
+            # Inline completion
+            if not is_backspace and hasattr(self.browser, 'bookmarks'):
+                for b in self.browser.bookmarks:
+                    url = b.get('url', '').replace('https://', '').replace('http://', '').replace('www.', '').rstrip('/')
+                    if url.lower().startswith(text.lower()) and len(url) > len(text):
+                        self.setText(text + url[len(text):])
+                        self.setSelection(len(text), len(url) - len(text))
+                        break
+                        
+            self.browser.suggest_worker.set_query(text)
+            self.browser.suggest_worker.start()
+        else:
+            self.popup.hide()
+            
+    def keyPressEvent(self, e):
+        if self.popup.isVisible():
+            if e.key() == Qt.Key.Key_Down:
+                self.popup.list_widget.setCurrentRow((self.popup.list_widget.currentRow() + 1) % self.popup.list_widget.count())
+                return
+            elif e.key() == Qt.Key.Key_Up:
+                row = self.popup.list_widget.currentRow() - 1
+                if row < 0: row = self.popup.list_widget.count() - 1
+                self.popup.list_widget.setCurrentRow(row)
+                return
+            elif e.key() == Qt.Key.Key_Enter or e.key() == Qt.Key.Key_Return:
+                if self.popup.list_widget.currentRow() >= 0:
+                    item = self.popup.list_widget.currentItem()
+                    if item:
+                        self.setText(item.data(Qt.ItemDataRole.UserRole))
+                        self.popup.hide()
+                        self.browser.navigate_from_bar()
+                        return
+        super().keyPressEvent(e)
+        
+    def focusOutEvent(self, e):
+        super().focusOutEvent(e)
+        QTimer.singleShot(200, self.popup.hide)
+
+# ======================================
 # MAIN BROWSER WINDOW
 # ======================================
 class YuukaaBrowser(QMainWindow):
     def __init__(self, cfg):
         super().__init__()
         self.config = cfg
-        self.setWindowTitle("Yuukaa Search V12")
+        self.setWindowTitle("Yuukaa Search V13")
         self.setGeometry(100, 100, 1280, 800)
 
         icon_path = resource_path("icon.ico")
@@ -574,6 +889,13 @@ class YuukaaBrowser(QMainWindow):
         self.is_dark_mode = (cfg.get("theme") == "dark")
         self.search_engine = cfg.get("engine", "google")
         self._last_repaint_time = 0
+        
+        # ---- BOOKMARKS ----
+        self.bookmarks_file = resource_path("bookmarks.json")
+        self.bookmarks = []
+        self._load_bookmarks()
+
+
 
         # ---- TABS (StackAll Architecture) ----
         self.tab_widgets = []
@@ -641,21 +963,23 @@ class YuukaaBrowser(QMainWindow):
             sc.setContext(Qt.ShortcutContext.ApplicationShortcut)
             sc.activated.connect(lambda idx=i-1: self._switch_to_tab_index(idx))
 
-        self.url_bar = QLineEdit()
+        self.url_bar = AddressBar(self)
         self.url_bar.setPlaceholderText("Cari atau masukkan URL...")
         self.url_bar.returnPressed.connect(self.navigate_from_bar)
         nav.addWidget(self.url_bar)
 
-        # Completer for Auto-suggestions
-        self.url_completer_model = QStringListModel()
-        self.url_completer = QCompleter(self.url_completer_model, self)
-        self.url_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.url_bar.setCompleter(self.url_completer)
-        
+        try:
+            self.btn_bookmark = QAction("⭐", self)
+            self.btn_bookmark.setToolTip("Tambahkan halaman ini ke Markah Buku")
+            self.btn_bookmark.triggered.connect(self.toggle_current_bookmark)
+            nav.addAction(self.btn_bookmark)
+        except Exception as e:
+            print("Bookmark init error:", e)
+            
         # Worker for Auto-suggestions
         self.suggest_worker = SuggestWorker(self)
         self.suggest_worker.suggestions_ready.connect(self.on_suggestions_ready)
-        self.url_bar.textEdited.connect(self.on_url_text_edited)
+        # self.url_bar.textEdited is connected inside AddressBar class
 
         # ---- MENU ----
         menu = QMenu("Menu", self)
@@ -736,6 +1060,92 @@ class YuukaaBrowser(QMainWindow):
         # Debounce GC to 1500ms
         self._gc_timer.start(1500)
 
+    # ======================================
+    # BOOKMARKS LOGIC
+    # ======================================
+    def _load_bookmarks(self):
+        if os.path.exists(self.bookmarks_file):
+            try:
+                with open(self.bookmarks_file, 'r', encoding='utf-8') as f:
+                    self.bookmarks = json.load(f)
+            except Exception as e:
+                print(f"Failed to load bookmarks: {e}")
+                self.bookmarks = []
+        else:
+            self.bookmarks = []
+            
+        # Ensure JS file exists
+        js_path = resource_path("bookmarks_data.js")
+        if not os.path.exists(js_path):
+            try:
+                with open(js_path, 'w', encoding='utf-8') as f:
+                    f.write(f"window.YUUKAA_BOOKMARKS = {json.dumps(self.bookmarks)};")
+            except:
+                pass
+
+    def _save_bookmarks(self):
+        try:
+            with open(self.bookmarks_file, 'w', encoding='utf-8') as f:
+                json.dump(self.bookmarks, f, indent=4)
+            
+            js_path = resource_path("bookmarks_data.js")
+            with open(js_path, 'w', encoding='utf-8') as f:
+                f.write(f"window.YUUKAA_BOOKMARKS = {json.dumps(self.bookmarks)};")
+        except Exception as e:
+            print(f"Failed to save bookmarks: {e}")
+
+    def toggle_current_bookmark(self):
+        tab = self._cur_tab()
+        if not tab:
+            return
+            
+        url = tab.url_str()
+        if not url or url.startswith("file://") or url == "about:blank":
+            return
+            
+        # Get unique folders
+        folders = list(set([b.get('folder', 'All Bookmarks') for b in self.bookmarks]))
+        
+        # Check if already bookmarked
+        existing = next((b for b in self.bookmarks if b.get('url') == url), None)
+        default_name = existing.get('title', getattr(tab, '_title', url)) if existing else getattr(tab, '_title', url)
+        default_folder = existing.get('folder', 'All Bookmarks') if existing else 'All Bookmarks'
+        
+        dialog = BookmarkDialog(self, default_name=default_name, default_folder=default_folder, folders=folders)
+        
+        # Position below the star button, right-aligned to the button
+        widget = self.findChildren(QToolBar)[0].widgetForAction(self.btn_bookmark)
+        if widget:
+            pos = widget.mapToGlobal(QPoint(widget.width() - 300, widget.height() + 4))
+            dialog.move(pos)
+            
+        result = dialog.exec()
+        
+        if result == QDialog.DialogCode.Accepted:
+            # Done clicked
+            name, folder = dialog.get_data()
+            if existing:
+                existing['title'] = name
+                existing['folder'] = folder
+            else:
+                self.bookmarks.append({"title": name, "url": url, "folder": folder})
+        elif result == QDialog.DialogCode.Rejected:
+            # Remove clicked
+            if existing:
+                self.bookmarks.remove(existing)
+            else:
+                # If they cancelled adding a new bookmark, do nothing
+                return
+                
+        self._save_bookmarks()
+        self.update_url_bar_str(url) # This will update the star icon color
+
+    def remove_bookmark(self, url):
+        self.bookmarks = [b for b in self.bookmarks if b.get('url') != url]
+        self._save_bookmarks()
+        if self._cur_tab() and self._cur_tab().url_str() == url:
+            self.update_url_bar_str(url)
+
     def get_home_url(self):
         import urllib.parse
         home_path = resource_path("home.html")
@@ -757,18 +1167,25 @@ class YuukaaBrowser(QMainWindow):
             self.tab_bar.setCurrentIndex(idx)
 
     def new_tab(self, url=None, label="New Tab", incognito=False):
-        if url is None:
-            url = self.get_home_url()
-            label = "Homepage"
-        tab = BrowserTab(url=url, incognito=incognito, main_window=self, parent=self)
-        if incognito and not label.startswith("🕵️"):
-            label = "🕵️ " + label
-        i = self.tab_bar.addTab(label)
-        self.tab_layout.addWidget(tab)
-        self.tab_bar.setCurrentIndex(i)
-        self.url_bar.clearFocus()
-        tab.webview.raise_()
-        return tab
+        try:
+            if url is None:
+                url = self.get_home_url()
+                label = "Homepage"
+            tab = BrowserTab(url=url, incognito=incognito, main_window=self, parent=self)
+            if incognito and not label.startswith("🕵️"):
+                label = "🕵️ " + label
+            i = self.tab_bar.addTab(label)
+            self.tab_layout.addWidget(tab)
+            self.tab_bar.setCurrentIndex(i)
+            self.url_bar.clearFocus()
+            if hasattr(tab, 'webview'):
+                tab.webview.raise_()
+            return tab
+        except Exception as e:
+            import traceback
+            with open("newtab_crash.log", "w") as f:
+                f.write(traceback.format_exc())
+            return None
 
     def open_settings(self):
         settings_path = resource_path("settings.html")
@@ -818,7 +1235,7 @@ class YuukaaBrowser(QMainWindow):
             title = tab.title_str()
             if not title or title == "None":
                 title = "Homepage"
-            self.setWindowTitle(f"{title} - Yuukaa Search V12")
+            self.setWindowTitle(f"{title} - Yuukaa Search V13")
             
             self.url_bar.clearFocus()
             if hasattr(tab, 'webview'):
@@ -833,19 +1250,28 @@ class YuukaaBrowser(QMainWindow):
         else:
             self.url_bar.setText(url_str)
             self.url_bar.setCursorPosition(0)
+            
+        # Cek status bookmark
+        if hasattr(self, 'btn_bookmark'):
+            is_bookmarked = any(b.get('url') == url_str for b in self.bookmarks)
+            self.btn_bookmark.setText("🌟" if is_bookmarked else "⭐")
 
     def _set_tab_title(self, idx, title, tab):
-        if "settings.html" in tab.url_str():
+        if title == "Yuukaa Settings" or title == "⚙️ Settings":
             display = "⚙️ Settings"
+        elif title == "Yuukaa Home" or title == "Homepage":
+            display = "Homepage"
         elif len(title) > 22:
             display = title[:19] + "..."
         else:
             display = title
+            
         if tab.incognito and not display.startswith("🕵️"):
             display = "🕵️ " + display
+            
         self.tab_bar.setTabText(idx, display)
         if self.tab_bar.currentIndex() == idx:
-            self.setWindowTitle(f"{title} - Yuukaa Search V12")
+            self.setWindowTitle(f"{title} - Yuukaa Search V13")
 
     def start_download(self, url, tab):
         cookies = []
@@ -862,16 +1288,16 @@ class YuukaaBrowser(QMainWindow):
         worker = DownloadWorker(url, cookies, dl_path)
         # Tangkap event progress untuk menampilkan di title bar window
         def update_progress(msg):
-            self.setWindowTitle(f"[ {msg} ] - Yuukaa Search V12")
+            self.setWindowTitle(f"[ {msg} ] - Yuukaa Search V13")
             
         def on_finished(final_path):
-            self.setWindowTitle("Download Selesai! - Yuukaa Search V12")
-            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V12"))
+            self.setWindowTitle("Download Selesai! - Yuukaa Search V13")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V13"))
             
         def on_error(err):
             print("Download Error:", err)
-            self.setWindowTitle("Download Gagal! - Yuukaa Search V12")
-            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V12"))
+            self.setWindowTitle("Download Gagal! - Yuukaa Search V13")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V13"))
             
         worker.progress.connect(update_progress)
         worker.finished.connect(on_finished)
@@ -904,6 +1330,29 @@ class YuukaaBrowser(QMainWindow):
             save_config(self.config)
             
             # Reload tab
+            tab = self._cur_tab()
+            if tab:
+                tab.reload()
+                
+        elif action == "edit-bookmark":
+            url_to_edit = qs.get("url", [""])[0]
+            name = qs.get("name", [""])[0]
+            folder = qs.get("folder", ["All Bookmarks"])[0]
+            
+            for b in self.bookmarks:
+                if b.get('url') == url_to_edit:
+                    b['title'] = name
+                    b['folder'] = folder
+                    break
+                    
+            self._save_bookmarks()
+            tab = self._cur_tab()
+            if tab:
+                tab.reload()
+                
+        elif action == "delete-bookmark":
+            url_to_del = qs.get("url", [""])[0]
+            self.remove_bookmark(url_to_del)
             tab = self._cur_tab()
             if tab:
                 tab.reload()
@@ -978,9 +1427,8 @@ class YuukaaBrowser(QMainWindow):
             self.suggest_worker.set_query(text)
             self.suggest_worker.start()
             
-    def on_suggestions_ready(self, suggestions):
-        # Update model without closing the popup
-        self.url_completer_model.setStringList(suggestions)
+    def on_suggestions_ready(self, local_matches, google_suggestions):
+        self.url_bar.popup.update_suggestions(local_matches, google_suggestions)
 
     def navigate_from_bar(self):
         text = self.url_bar.text().strip()
@@ -991,17 +1439,28 @@ class YuukaaBrowser(QMainWindow):
             self.open_settings()
             return
 
-        if " " in text or "." not in text:
+        is_url = False
+        url = ""
+        
+        if text.startswith("http://") or text.startswith("https://") or text.startswith("yuukaa://"):
+            is_url = True
+            url = text
+        elif text.startswith("localhost") or text.startswith("127.0.0.1"):
+            is_url = True
+            url = "http://" + text
+        elif " " not in text and "." in text:
+            is_url = True
+            url = "https://" + text
+            
+        if not is_url:
             eng = self.search_engine
-            q = text.replace(" ", "+")
+            q = urllib.parse.quote_plus(text)
             if eng == "bing":
                 url = f"https://www.bing.com/search?q={q}"
             elif eng == "duckduckgo":
                 url = f"https://duckduckgo.com/?q={q}"
             else:
                 url = f"https://www.google.com/search?q={q}"
-        else:
-            url = text if text.startswith("http") else "https://" + text
 
         tab = self._cur_tab()
         if tab:
