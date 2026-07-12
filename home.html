@@ -881,6 +881,7 @@
                     iconHtml = `<img src="${item.icon}" onerror="this.style.display='none'">`;
                     const cleanUrl = item.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
                     textHtml = `<b>${item.title}</b> - <span style="color: #8ab4f8;">${cleanUrl}</span>`;
+                    div.dataset.query = cleanUrl; // Untuk arrow key fill
                     
                     div.onclick = function() {
                         window.location.href = item.url;
@@ -888,6 +889,7 @@
                 } else {
                     iconHtml = searchSvg;
                     textHtml = item.text;
+                    div.dataset.query = item.text; // Untuk arrow key fill
                     
                     div.onclick = function() {
                         document.getElementById('searchInput').value = item.text;
@@ -940,15 +942,37 @@
 
         document.getElementById('searchInput').addEventListener('keydown', function(e) {
             const box = document.getElementById('suggestionsBox');
+            const input = document.getElementById('searchInput');
             if (box.style.display !== 'block') return;
             
-            const items = box.getElementsByTagName('div');
+            // Pakai querySelectorAll agar hanya ambil item utama, bukan inner div
+            const items = box.querySelectorAll('.suggestion-item');
+            const count = items.length;
+            if (count === 0) return;
+
             if (e.key === 'ArrowDown') {
-                currentFocus++;
+                e.preventDefault();
+                currentFocus = (currentFocus + 1) % count;
                 addActive(items);
+                fillInputFromFocus(items);
             } else if (e.key === 'ArrowUp') {
-                currentFocus--;
-                addActive(items);
+                e.preventDefault();
+                if (currentFocus <= 0) {
+                    // Balik ke teks asli
+                    currentFocus = -1;
+                    removeActive(items);
+                    input.value = originalInputText;
+                } else {
+                    currentFocus--;
+                    addActive(items);
+                    fillInputFromFocus(items);
+                }
+            } else if (e.key === 'Escape') {
+                input.value = originalInputText;
+                currentFocus = -1;
+                removeActive(items);
+                box.style.display = 'none';
+                document.querySelector('.search-box').style.borderRadius = '24px';
             } else if (e.key === 'Enter') {
                 if (currentFocus > -1 && items[currentFocus]) {
                     e.preventDefault();
@@ -957,13 +981,32 @@
             }
         });
 
+        // Simpan teks asli sebelum navigasi arrow (sama seperti Chrome)
+        let originalInputText = '';
+        document.getElementById('searchInput').addEventListener('input', function() {
+            originalInputText = this.value;
+            currentFocus = -1;
+        });
+
+        function fillInputFromFocus(items) {
+            const input = document.getElementById('searchInput');
+            if (currentFocus < 0 || currentFocus >= items.length) {
+                input.value = originalInputText;
+                return;
+            }
+            const activeItem = items[currentFocus];
+            if (activeItem && activeItem.dataset.query) {
+                input.value = activeItem.dataset.query;
+            }
+        }
+
         function addActive(items) {
             if (!items) return;
             removeActive(items);
-            if (currentFocus >= items.length) currentFocus = 0;
-            if (currentFocus < 0) currentFocus = (items.length - 1);
-            items[currentFocus].classList.add('active');
-            items[currentFocus].scrollIntoView({ block: 'nearest' });
+            if (currentFocus >= 0 && currentFocus < items.length) {
+                items[currentFocus].classList.add('active');
+                items[currentFocus].scrollIntoView({ block: 'nearest' });
+            }
         }
 
         function removeActive(items) {

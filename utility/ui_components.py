@@ -488,10 +488,13 @@ class AddressBar(QLineEdit):
         self.popup = URLPopupList(self, browser_window)
         self.textEdited.connect(self._on_text_edited)
         self._last_len = 0
+        self._original_text = ""  # Simpan teks asli sebelum navigasi arrow
         
     def _on_text_edited(self, text):
         is_backspace = len(text) < self._last_len
         self._last_len = len(text)
+        # Update teks asli setiap kali user mengetik sendiri
+        self._original_text = text
         
         if len(text.strip()) > 0:
             if not is_backspace and hasattr(self.browser, 'bookmarks'):
@@ -506,16 +509,48 @@ class AddressBar(QLineEdit):
             self.browser.suggest_worker.start()
         else:
             self.popup.hide()
+
+    def _fill_from_row(self, row):
+        """Isi URL bar dari item suggestion di baris tertentu, seperti Chrome."""
+        if row < 0 or row >= self.popup.list_widget.count():
+            # Tidak ada item terpilih, kembalikan ke teks asli
+            self.setText(self._original_text)
+            self._last_len = len(self._original_text)
+            return
+        item = self.popup.list_widget.item(row)
+        if item:
+            val = item.data(Qt.ItemDataRole.UserRole)
+            if val:
+                self.setText(val)
+                self.setCursorPosition(len(val))
             
     def keyPressEvent(self, e):
         if self.popup.isVisible():
             if e.key() == Qt.Key.Key_Down:
-                self.popup.list_widget.setCurrentRow((self.popup.list_widget.currentRow() + 1) % self.popup.list_widget.count())
+                count = self.popup.list_widget.count()
+                cur = self.popup.list_widget.currentRow()
+                # -1 berarti belum ada yang dipilih, jadi next = 0
+                next_row = (cur + 1) % count
+                self.popup.list_widget.setCurrentRow(next_row)
+                self._fill_from_row(next_row)
                 return
             elif e.key() == Qt.Key.Key_Up:
-                row = self.popup.list_widget.currentRow() - 1
-                if row < 0: row = self.popup.list_widget.count() - 1
-                self.popup.list_widget.setCurrentRow(row)
+                count = self.popup.list_widget.count()
+                cur = self.popup.list_widget.currentRow()
+                if cur <= 0:
+                    # Sudah di atas, kembali ke teks asli dan deselect semua
+                    self.popup.list_widget.setCurrentRow(-1)
+                    self._fill_from_row(-1)
+                else:
+                    prev_row = cur - 1
+                    self.popup.list_widget.setCurrentRow(prev_row)
+                    self._fill_from_row(prev_row)
+                return
+            elif e.key() == Qt.Key.Key_Escape:
+                # Escape: tutup popup & kembalikan teks asli
+                self.setText(self._original_text)
+                self._last_len = len(self._original_text)
+                self.popup.hide()
                 return
             elif e.key() == Qt.Key.Key_Enter or e.key() == Qt.Key.Key_Return:
                 if self.popup.list_widget.currentRow() >= 0:
