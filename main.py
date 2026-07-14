@@ -159,18 +159,23 @@ class YuukaaBrowser(QMainWindow):
         self.memory_saver_timer.timeout.connect(self._run_memory_saver)
         self.memory_saver_timer.start()
 
-        # ---- DRAG & DROP ----
-        self.setAcceptDrops(True)
+        # ---- DRAG & DROP (hanya di tab bar, bukan main window) ----
+        # PENTING: Jangan setAcceptDrops(True) di main window karena akan
+        # mem-block OLE IDropTarget milik WebView2 sehingga web page
+        # tidak bisa menerima drop (seperti remove.bg dll).
+        # Kita hanya enable drag di tab_bar (area chrome kecil di atas webview).
         self._setup_drag_overlay()
+        self.tab_bar.setAcceptDrops(True)
+        self.tab_bar.installEventFilter(self)
 
         # Home tab
         self.new_tab(url=self.get_home_url(), label="Homepage")
 
     # ======================================
-    # DRAG & DROP
+    # DRAG & DROP  (EventFilter on tab_bar)
     # ======================================
     def _setup_drag_overlay(self):
-        """Overlay transparan yang muncul saat user drag file ke browser."""
+        """Overlay yang muncul saat user drag file ke tab bar."""
         self._drag_overlay = QFrame(self.centralWidget())
         self._drag_overlay.setObjectName("dragOverlay")
         self._drag_overlay.setStyleSheet("""
@@ -187,7 +192,7 @@ class YuukaaBrowser(QMainWindow):
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setStyleSheet("font-size: 52px; background: transparent; border: none;")
 
-        text_lbl = QLabel("Lepaskan untuk membuka")
+        text_lbl = QLabel("Lepaskan untuk membuka di tab baru")
         text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text_lbl.setStyleSheet(
             "color: #a78bfa; font-size: 20px; font-weight: bold; "
@@ -215,107 +220,45 @@ class YuukaaBrowser(QMainWindow):
         else:
             self._drag_overlay.hide()
 
-    def _is_over_chrome(self, event):
-        """
-        Cek apakah posisi drag berada di area chrome (toolbar / tab bar),
-        bukan di atas area konten web (WebView2).
-        Jika di atas webview → kita TIDAK intercept, biarkan WebView2 handle sendiri.
-        """
-        from PyQt6.QtCore import QRect, QPoint
-        pos = event.position().toPoint()  # posisi relatif ke QMainWindow
-
-        # Cek toolbar
-        for tb in self.findChildren(QToolBar):
-            if tb.isVisible():
-                # map toolbar rect ke main window coords
-                tb_top_left = tb.mapTo(self, QPoint(0, 0))
-                tb_rect = QRect(tb_top_left, tb.size())
-                if tb_rect.contains(pos):
+    def eventFilter(self, obj, event):
+        """EventFilter dipasang hanya di tab_bar untuk handle drag & drop."""
+        from PyQt6.QtCore import QEvent
+        if obj is self.tab_bar:
+            if event.type() == QEvent.Type.DragEnter:
+                mime = event.mimeData()
+                if mime.hasUrls() or mime.hasText():
+                    self._show_drag_overlay(True)
+                    event.acceptProposedAction()
                     return True
-
-        # Cek tab bar
-        tb_top_left = self.tab_bar.mapTo(self, QPoint(0, 0))
-        tab_rect = QRect(tb_top_left, self.tab_bar.size())
-        if tab_rect.contains(pos):
-            return True
-
-        return False
-
-    def dragEnterEvent(self, event):
-        mime = event.mimeData()
-        if not (mime.hasUrls() or mime.hasText()):
-            event.ignore()
-            return
-
-        if self._is_over_chrome(event):
-            # Drop di atas toolbar/tab bar → kita handle (buka file di tab)
-            self._show_drag_overlay(True)
-            event.acceptProposedAction()
-        else:
-            # Drop di atas area web → biarkan WebView2 handle natively
-            event.ignore()
-
-    def dragMoveEvent(self, event):
-        if not (event.mimeData().hasUrls() or event.mimeData().hasText()):
-            event.ignore()
-            return
-
-        if self._is_over_chrome(event):
-            self._show_drag_overlay(True)
-            event.acceptProposedAction()
-        else:
-            self._show_drag_overlay(False)
-            event.ignore()
-
-    def dragLeaveEvent(self, event):
-        self._show_drag_overlay(False)
-        super().dragLeaveEvent(event)
-
-    def dropEvent(self, event):
-        self._show_drag_overlay(False)
-        mime = event.mimeData()
-
-        # Jika drop bukan di chrome, biarkan WebView2 handle
-        if not self._is_over_chrome(event):
-            event.ignore()
-            return
-
-        # ---- Drop file/URL dari File Explorer ke toolbar/tab bar ----
-        if mime.hasUrls():
-            urls = mime.urls()
-            opened_first = False
-            for url in urls:
-                if url.isLocalFile():
-                    local_path = url.toLocalFile()
-                    file_url = QUrl.fromLocalFile(local_path).toString()
-                    label = os.path.basename(local_path)
-                else:
-                    file_url = url.toString()
-                    label = file_url
-
-                if not opened_first:
-                    tab = self._cur_tab()
-                    cur_url = tab.url_str() if tab else ""
-                    is_homepage = not cur_url or "home.html" in cur_url or cur_url == "about:blank"
-                    if tab and is_homepage:
-                        tab.load(file_url)
-                        self._set_tab_title(self.tab_bar.currentIndex(), label, tab)
-                    else:
+            elif event.type() == QEvent.Type.DragMove:
+                if event.mimeData().hasUrls() or event.mimeData().hasText():
+                    event.acceptProposedAction()
+                    return True
+            elif event.type() == QEvent.Type.DragLeave:
+                self._show_drag_overlay(False)
+                return True
+            elif event.type() == QEvent.Type.Drop:
+                self._show_drag_overlay(False)
+                mime = event.mimeData()
+                if mime.hasUrls():
+                    for url in mime.urls():
+                        if url.isLocalFile():
+                            file_url = QUrl.fromLocalFile(url.toLocalFile()).toString()
+                            label = os.path.basename(url.toLocalFile())
+                        else:
+                            file_url = url.toString()
+                            label = file_url
                         self.new_tab(url=file_url, label=label)
-                    opened_first = True
-                else:
-                    self.new_tab(url=file_url, label=label)
-            event.acceptProposedAction()
-
-        # ---- Drop teks/URL dari web ke toolbar ----
-        elif mime.hasText():
-            text = mime.text().strip()
-            if text:
-                self.url_bar.setText(text)
-                self.navigate_from_bar()
-            event.acceptProposedAction()
-        else:
-            event.ignore()
+                    event.acceptProposedAction()
+                    return True
+                elif mime.hasText():
+                    text = mime.text().strip()
+                    if text:
+                        self.url_bar.setText(text)
+                        self.navigate_from_bar()
+                    event.acceptProposedAction()
+                    return True
+        return super().eventFilter(obj, event)
 
     def _run_memory_saver(self, force=False):
         # 5 minutes timeout by default
