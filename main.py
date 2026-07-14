@@ -215,18 +215,56 @@ class YuukaaBrowser(QMainWindow):
         else:
             self._drag_overlay.hide()
 
+    def _is_over_chrome(self, event):
+        """
+        Cek apakah posisi drag berada di area chrome (toolbar / tab bar),
+        bukan di atas area konten web (WebView2).
+        Jika di atas webview → kita TIDAK intercept, biarkan WebView2 handle sendiri.
+        """
+        from PyQt6.QtCore import QRect, QPoint
+        pos = event.position().toPoint()  # posisi relatif ke QMainWindow
+
+        # Cek toolbar
+        for tb in self.findChildren(QToolBar):
+            if tb.isVisible():
+                # map toolbar rect ke main window coords
+                tb_top_left = tb.mapTo(self, QPoint(0, 0))
+                tb_rect = QRect(tb_top_left, tb.size())
+                if tb_rect.contains(pos):
+                    return True
+
+        # Cek tab bar
+        tb_top_left = self.tab_bar.mapTo(self, QPoint(0, 0))
+        tab_rect = QRect(tb_top_left, self.tab_bar.size())
+        if tab_rect.contains(pos):
+            return True
+
+        return False
+
     def dragEnterEvent(self, event):
         mime = event.mimeData()
-        if mime.hasUrls() or mime.hasText():
+        if not (mime.hasUrls() or mime.hasText()):
+            event.ignore()
+            return
+
+        if self._is_over_chrome(event):
+            # Drop di atas toolbar/tab bar → kita handle (buka file di tab)
             self._show_drag_overlay(True)
             event.acceptProposedAction()
         else:
+            # Drop di atas area web → biarkan WebView2 handle natively
             event.ignore()
 
     def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls() or event.mimeData().hasText():
+        if not (event.mimeData().hasUrls() or event.mimeData().hasText()):
+            event.ignore()
+            return
+
+        if self._is_over_chrome(event):
+            self._show_drag_overlay(True)
             event.acceptProposedAction()
         else:
+            self._show_drag_overlay(False)
             event.ignore()
 
     def dragLeaveEvent(self, event):
@@ -237,7 +275,12 @@ class YuukaaBrowser(QMainWindow):
         self._show_drag_overlay(False)
         mime = event.mimeData()
 
-        # ---- Drop file/URL dari File Explorer atau browser lain ----
+        # Jika drop bukan di chrome, biarkan WebView2 handle
+        if not self._is_over_chrome(event):
+            event.ignore()
+            return
+
+        # ---- Drop file/URL dari File Explorer ke toolbar/tab bar ----
         if mime.hasUrls():
             urls = mime.urls()
             opened_first = False
@@ -264,7 +307,7 @@ class YuukaaBrowser(QMainWindow):
                     self.new_tab(url=file_url, label=label)
             event.acceptProposedAction()
 
-        # ---- Drop teks biasa / URL yang di-drag dari halaman web ----
+        # ---- Drop teks/URL dari web ke toolbar ----
         elif mime.hasText():
             text = mime.text().strip()
             if text:
