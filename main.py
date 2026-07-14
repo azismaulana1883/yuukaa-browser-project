@@ -7,7 +7,8 @@ import urllib.parse
 from urllib.parse import urlparse, parse_qs
 from PyQt6.QtCore import QUrl, Qt, QTimer, QPoint
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QToolBar, QTabBar, QStackedLayout,
-                             QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog, QDialog)
+                             QWidget, QVBoxLayout, QMenu, QToolButton, QFileDialog, QDialog,
+                             QFrame, QLabel)
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 
 from utility.utils import (resource_path, load_config, save_config, 
@@ -24,7 +25,7 @@ class YuukaaBrowser(QMainWindow):
     def __init__(self, cfg):
         super().__init__()
         self.config = cfg
-        self.setWindowTitle("Yuukaa Search V13")
+        self.setWindowTitle("Yuukaa Search V14")
         self.setGeometry(100, 100, 1280, 800)
 
         icon_path = resource_path("icon.ico")
@@ -158,8 +159,120 @@ class YuukaaBrowser(QMainWindow):
         self.memory_saver_timer.timeout.connect(self._run_memory_saver)
         self.memory_saver_timer.start()
 
+        # ---- DRAG & DROP ----
+        self.setAcceptDrops(True)
+        self._setup_drag_overlay()
+
         # Home tab
         self.new_tab(url=self.get_home_url(), label="Homepage")
+
+    # ======================================
+    # DRAG & DROP
+    # ======================================
+    def _setup_drag_overlay(self):
+        """Overlay transparan yang muncul saat user drag file ke browser."""
+        self._drag_overlay = QFrame(self.centralWidget())
+        self._drag_overlay.setObjectName("dragOverlay")
+        self._drag_overlay.setStyleSheet("""
+            QFrame#dragOverlay {
+                background-color: rgba(124, 77, 255, 0.18);
+                border: 3px dashed #a78bfa;
+                border-radius: 16px;
+            }
+        """)
+        overlay_layout = QVBoxLayout(self._drag_overlay)
+        overlay_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        icon_lbl = QLabel("📂")
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setStyleSheet("font-size: 52px; background: transparent; border: none;")
+
+        text_lbl = QLabel("Lepaskan untuk membuka")
+        text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        text_lbl.setStyleSheet(
+            "color: #a78bfa; font-size: 20px; font-weight: bold; "
+            "background: transparent; border: none;"
+        )
+
+        sub_lbl = QLabel("File, gambar, atau URL")
+        sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub_lbl.setStyleSheet(
+            "color: #c4b5fd; font-size: 13px; background: transparent; border: none;"
+        )
+
+        overlay_layout.addWidget(icon_lbl)
+        overlay_layout.addWidget(text_lbl)
+        overlay_layout.addWidget(sub_lbl)
+        self._drag_overlay.hide()
+
+    def _show_drag_overlay(self, show: bool):
+        if show:
+            cw = self.centralWidget()
+            if cw:
+                self._drag_overlay.setGeometry(cw.rect())
+                self._drag_overlay.raise_()
+                self._drag_overlay.show()
+        else:
+            self._drag_overlay.hide()
+
+    def dragEnterEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasUrls() or mime.hasText():
+            self._show_drag_overlay(True)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls() or event.mimeData().hasText():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self._show_drag_overlay(False)
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event):
+        self._show_drag_overlay(False)
+        mime = event.mimeData()
+
+        # ---- Drop file/URL dari File Explorer atau browser lain ----
+        if mime.hasUrls():
+            urls = mime.urls()
+            opened_first = False
+            for url in urls:
+                if url.isLocalFile():
+                    local_path = url.toLocalFile()
+                    file_url = QUrl.fromLocalFile(local_path).toString()
+                    label = os.path.basename(local_path)
+                else:
+                    file_url = url.toString()
+                    label = file_url
+
+                if not opened_first:
+                    tab = self._cur_tab()
+                    cur_url = tab.url_str() if tab else ""
+                    is_homepage = not cur_url or "home.html" in cur_url or cur_url == "about:blank"
+                    if tab and is_homepage:
+                        tab.load(file_url)
+                        self._set_tab_title(self.tab_bar.currentIndex(), label, tab)
+                    else:
+                        self.new_tab(url=file_url, label=label)
+                    opened_first = True
+                else:
+                    self.new_tab(url=file_url, label=label)
+            event.acceptProposedAction()
+
+        # ---- Drop teks biasa / URL yang di-drag dari halaman web ----
+        elif mime.hasText():
+            text = mime.text().strip()
+            if text:
+                self.url_bar.setText(text)
+                self.navigate_from_bar()
+            event.acceptProposedAction()
+        else:
+            event.ignore()
 
     def _run_memory_saver(self, force=False):
         # 5 minutes timeout by default
@@ -373,7 +486,7 @@ class YuukaaBrowser(QMainWindow):
             title = tab.title_str()
             if not title or title == "None":
                 title = "Homepage"
-            self.setWindowTitle(f"{title} - Yuukaa Search V13")
+            self.setWindowTitle(f"{title} - Yuukaa Search V14")
             
             self.url_bar.clearFocus()
             if hasattr(tab, 'webview'):
@@ -408,7 +521,7 @@ class YuukaaBrowser(QMainWindow):
             
         self.tab_bar.setTabText(idx, display)
         if self.tab_bar.currentIndex() == idx:
-            self.setWindowTitle(f"{title} - Yuukaa Search V13")
+            self.setWindowTitle(f"{title} - Yuukaa Search V14")
 
     def start_download(self, url, tab):
         cookies = []
@@ -425,16 +538,16 @@ class YuukaaBrowser(QMainWindow):
         worker = DownloadWorker(url, cookies, dl_path)
         
         def update_progress(msg):
-            self.setWindowTitle(f"[ {msg} ] - Yuukaa Search V13")
+            self.setWindowTitle(f"[ {msg} ] - Yuukaa Search V14")
             
         def on_finished(final_path):
-            self.setWindowTitle("Download Selesai! - Yuukaa Search V13")
-            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V13"))
+            self.setWindowTitle("Download Selesai! - Yuukaa Search V14")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V14"))
             
         def on_error(err):
             print("Download Error:", err)
-            self.setWindowTitle("Download Gagal! - Yuukaa Search V13")
-            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V13"))
+            self.setWindowTitle("Download Gagal! - Yuukaa Search V14")
+            QTimer.singleShot(3000, lambda: self.setWindowTitle("Yuukaa Search V14"))
             
         worker.progress.connect(update_progress)
         worker.finished.connect(on_finished)
@@ -650,7 +763,7 @@ if __name__ == '__main__':
     # Fix Taskbar Icon on Windows
     try:
         import ctypes
-        myappid = 'yuukaa.browser.search.v13'
+        myappid = 'yuukaa.browser.search.v14'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass

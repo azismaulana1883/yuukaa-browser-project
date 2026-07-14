@@ -1,14 +1,14 @@
 [Setup]
 AppId={{C7A2E9F2-3B44-4A8E-9801-D36F6D44123A}
 AppName=Yuukaa Browser
-AppVersion=13.0
+AppVersion=14.0
 AppPublisher=Azis Maulana (Yuukaa)
 AppCopyright=Copyright (C) 2026 Azis Maulana (Yuukaa)
 LicenseFile=G:\yuukaa-browser\license.txt
 DefaultDirName={autopf}\Yuukaa Browser
 DefaultGroupName=Yuukaa Browser
 OutputDir=G:\yuukaa-browser\installer
-OutputBaseFilename=Yuukaa_Browser_V13_Setup
+OutputBaseFilename=Yuukaa_Browser_V14_Setup
 SetupIconFile=G:\yuukaa-browser\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
